@@ -1,3 +1,5 @@
+![logisim](https://github.com/AndreaLu/logisim/blob/main/logisim.png)
+
 Digital logic simulation for python, just for fun!
 The simulation is carried out in unit intervals or steps, and all basic logic gates have a propagation delay of one step.
 
