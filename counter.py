@@ -1,3 +1,9 @@
+import logisim
+from logisim import Vector,Net
+from logisim.adder import ADDER
+from logisim.mem import REG
+
+
 # example circuit, cnt <= cnt*2 + 1
 #   _________________________________
 #  /       __                        \
@@ -12,18 +18,14 @@
 #                        clk
 #
 
-# Define the circuit
-import logisim
-from logisim import Vector,Net
-from logisim.adder import ADDER
-from logisim.mem import REG
-
+# Define the circuit nodes
 A       = Vector(8) # net A in the picture
 B       = Vector(8) # net B in the picture
 cnt     = Vector(8) # register output in the picture
 one     = Vector(8) # constant, value 1
 clock   = Net()
 
+# Define the circuit cells
 ADDER(cnt,cnt,A)    # 8 full adder = 40 logic gates
 ADDER(A,one,B)      # 40 logic gates
 REG(B,clock,cnt,0)  # 8 DFF-pet = 48 NAND gates

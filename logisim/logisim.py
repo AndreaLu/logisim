@@ -96,7 +96,7 @@ GND.set(0)
 VDD.set(1)
 
 
-# Generate VCD the file with the nets that have been named with VCDName method
+# Generate the VCD file with the nets that have been named with VCDName method
 def generateVCD(fname):
     ids = []
     def getID():
