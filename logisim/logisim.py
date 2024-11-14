@@ -1,6 +1,6 @@
-gates = [] # Elenco delle porte esistenti
-nets = [] # Elenco dei nodi esistenti
-vectors = []
+gates = []   # All existing logic gates
+nets = []    # All existing nets
+vectors = [] # All existing vectors
 
 
 class Net:
@@ -64,7 +64,6 @@ class Gate:
         self.output = output
         gates.append(self)
 
-
 class AND(Gate):
     def Eval(self):
         self.output.set(0 if 0 in [input.get() for input in self.inputs] else 1)
@@ -97,9 +96,8 @@ GND.set(0)
 VDD.set(1)
 
 
-# Genera il file VCD per guardare le forme d'onda con un programma esterno
+# Generate VCD the file with the nets that have been named with VCDName method
 def generateVCD(fname):
-    
     ids = []
     def getID():
         id = ""
@@ -113,10 +111,10 @@ def generateVCD(fname):
     retv += "$scope module logic $end\n"
 
 
-    netsUpdate = [] # lista dei nodi / vettori che cambiano
+    netsUpdate = [] 
     vectorsUpdate = []
     
-    # Esporta tutti i nodi con un nonme assegnato in un file VCD
+    # Generate the VCD IDs for the nets/vectors with a name
     for net in nets:
         if net.name == "": continue
         if net.isVector: continue
@@ -136,7 +134,8 @@ def generateVCD(fname):
     for t in range(len(nets[0].value)):
         netsUpdate.clear()
         vectorsUpdate.clear()
-        # Trova tutti i nodi cambiati
+        # populate netsUpdate and vectorsUpdate with all the nets and vectors
+        # that did change value on this time unit
         if t == 0:
             for net in nets:
                 if net.id is not None: netsUpdate.append(net)
@@ -152,6 +151,7 @@ def generateVCD(fname):
                         vectorsUpdate.append(vector)
                         break
         
+        # add to the VCD file only the nets that were updated
         if len(netsUpdate) + len(vectorsUpdate) > 0:
             retv += f"#{t}\n"
             for net in netsUpdate:
