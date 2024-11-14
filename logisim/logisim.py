@@ -7,21 +7,17 @@ class Net:
     def __init__(self):
         nets.append(self)
         self.value = [0]
-        self.updated = [False]
         self.name = ""
         self.isVector = False
         self.id = None
         
     def set(self,val):
-        global netsUpdated
-        self.updated[-1] = True
         self.value[-1] = val
     def get(self):
         return self.value[-2]
         
     def advanceTime(self):
         self.value.append(self.value[-1])
-        self.updated.append(False)
 
     def VCDName(self,name):
         self.name = name
