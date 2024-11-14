@@ -36,6 +36,7 @@ one.set(1)
 
 for t in range(500):
     # Create a 16 time units clock period to give enough time
+    # for the combinational logic to settle
     clock.set( (t >> 3) & 1 )  
     logisim.simulateTimeUnit()
 
