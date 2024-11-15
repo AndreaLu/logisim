@@ -78,12 +78,16 @@ class NOR(OR):
 class XOR(Gate):
     def Eval(self):
         self.output.set(1 if sum([input.get() for input in self.inputs]) == 1 else 0)
+class BUFF(Gate):
+    def Eval(self):
+        self.output.set(self.inputs[0].get())
 
-def simulateTimeUnit():
-    for net in nets:
-        net.advanceTime()
-    for gate in gates:
-        gate.Eval()
+def simulateTimeUnit(units=1):
+    for i in range(units):
+        for net in nets:
+            net.advanceTime()
+        for gate in gates:
+            gate.Eval()
 
 
 GND = Net()

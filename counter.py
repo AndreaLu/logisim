@@ -2,6 +2,7 @@ import logisim
 from logisim import Vector,Net
 from logisim.adder import ADDER
 from logisim.mem import REG
+from logisim.oscillator import OSCILLATOR
 
 
 # example circuit, cnt <= cnt*2 + 1
@@ -26,20 +27,17 @@ one     = Vector(8) # constant, value 1
 clock   = Net()
 
 # Define the circuit cells
-ADDER(cnt,cnt,A)    # 8 full adder = 40 logic gates
-ADDER(A,one,B)      # 40 logic gates
-REG(B,clock,cnt,0)  # 8 DFF-pet = 48 NAND gates
-# 128 logic gates total
+ADDER(cnt,cnt,A)     # 8 full adder = 40 logic gates
+ADDER(A,one,B)       # 40 logic gates
+OSCILLATOR(7,clock)  # 7 logic gates ring oscillator
+REG(B,clock,cnt,0)   # 8 DFF-pet = 48 NAND gates
+# 135 logic gates total
 
 # Initial values
 one.set(1)
 
-for t in range(500):
-    # Create a 16 time units clock period to give enough time
-    # for the combinational logic to settle
-    clock.set( (t >> 3) & 1 )  
-    logisim.simulateTimeUnit()
-
+# Simulate for 500 steps
+logisim.simulateTimeUnit(500)
 
 clock.VCDName("clk")
 cnt.VCDName("counter")
