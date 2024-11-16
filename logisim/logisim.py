@@ -2,6 +2,9 @@ gates = []   # All existing logic gates
 nets = []    # All existing nets
 vectors = [] # All existing vectors
 
+# TODOS:
+# - writeVCD should use a better algorithm to generate the
+#   signals ID so that it can generate an unlimited number of IDs
 
 class Net:
     def __init__(self):
@@ -25,6 +28,7 @@ class Net:
 # Collection of nets
 class Vector:
     def __init__(self,length):
+        assert length > 0
         self.nets = []
         self.length = length
         for i in range(length):
@@ -97,7 +101,9 @@ VDD.set(1)
 
 
 # Generate the VCD file with the nets that have been named with VCDName method
-def generateVCD(fname):
+def writeVCD(fname):
+    import inspect  # needed to automatically assign a name to nets
+                    # using their respective variable names
     ids = []
     def getID():
         id = ""
@@ -114,6 +120,22 @@ def generateVCD(fname):
     netsUpdate = [] 
     vectorsUpdate = []
     
+    frame = inspect.currentframe().f_back
+    for var_name, var_val in frame.f_locals.items():
+        if type(var_val) is list or type(var_val) is tuple:
+            allNets = True
+            for child in var_val:
+                if type(child) not in (Vector,Net):
+                    allNets = False
+                    break
+            if allNets:
+                i = -1
+                for child in var_val:
+                    i += 1
+                    child.VCDName(f"{var_name}.net[{i}]")
+        if type(var_val) in (Net,Vector):
+            var_val.VCDName(var_name)
+
     # Generate the VCD IDs for the nets/vectors with a name
     for net in nets:
         if net.name == "": continue

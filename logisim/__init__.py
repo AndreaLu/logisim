@@ -1,5 +1,11 @@
-__version__ = '1.0.2'
+__version__ = '1.1.0'
 # Changelog:
+# 1.1.0
+# - Improved MUX and DEMUX to allow sel to be of type Net for 2-way muxes
+# - Optimization fo MUX and DEMUX to save logic gates on sel decoding
+# - reorganized library in the modules seq, comb, arith instead of exporing
+#   everything from the core. This also allows module test procedures
+#   to be run independently without circular imports
 # 1.0.2
 # - implemented MUX standard cell
 # - implemented DEMUX standard cell
@@ -9,18 +15,3 @@ __version__ = '1.0.2'
 # 1.0.0
 # - first release
 
-from .logisim import *
-from .mux import MUX, DEMUX
-from .oscillator import OSCILLATOR
-from .arith import ADDER
-from .mem import DFF,REG
-
-__all__ = [
-    "AND","OR","NOT","NOR","NAND","XOR","BUFF", # logisim
-    "MUX","DEMUX",                              # mux
-    "Vector","Net",                             # logisim
-    "OSCILLATOR",                               # oscillator
-    "ADDER",                                    # arith
-    "DFF","REG",                                # mem
-    "simulateTimeUnit","generateVCD"            # logisim
-]

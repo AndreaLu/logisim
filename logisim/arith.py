@@ -1,6 +1,6 @@
 import logisim
-from logisim import Net,Vector,XOR,AND,GND,OR
-from logisim.mem import REG
+from .logisim import Net,Vector,XOR,AND,GND,OR
+from .seq import REG
 
 class HalfAdder:
     def __init__(self,A:Net,B:Net,C:Net,S:Net):
@@ -18,12 +18,13 @@ class FullAdder:
 
 class ADDER:
     def __init__(self, A:Vector, B:Vector, Out:Vector):
-        self.length = A.length
-        if A.length != B.length or A.length != Out.length:
-            raise Exception("A,B,Out lengths must all be equal!")
-        self.carry = Vector(self.length+1)
+        wordLen = A.length
+        assert B.length == wordLen
+        assert Out.length == wordLen
+        
+        self.carry = Vector(wordLen+1)
         self.carry.nets[0].set(0)
-        for i in range(self.length):
+        for i in range(wordLen):
             FullAdder( 
                 A.nets[i],           # A
                 B.nets[i],           # B
