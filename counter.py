@@ -1,4 +1,6 @@
-from logisim import *
+from logisim import Vector,Net,simulateTimeUnit,writeVCD
+from logisim.arith import ADDER
+from logisim.seq import OSCILLATOR,REG
 
 
 # example circuit, cnt <= cnt*2 + 1
@@ -35,6 +37,4 @@ one.set(1)
 # Simulate for 500 steps
 simulateTimeUnit(500)
 
-clock.VCDName("clk")
-cnt.VCDName("counter")
-generateVCD("adder.vcd")
+writeVCD("adder.vcd")
