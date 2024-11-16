@@ -1,5 +1,5 @@
 from .logisim import NAND,Net,Vector
-
+from math import log2,ceil
 # D-PET Flip Flop
 class DFF:
     def __init__(self, Din: Net, clock: Net, Q: Net, QInit=0):
@@ -29,6 +29,12 @@ class REG:
             raise Exception("D and Q vectors must have the same length")
         for i in range(self.length):
             DFF(D.nets[i],clock,Q.nets[i], (Vinit >> i) & 1 )
+
+class REGFILE:
+    def __init__(self, size:int, address:Vector, clock: Net, we: Net, re: Net, dataIn: Vector, dataOut: Vector):
+        # make sure all registers can be addressed
+        assert address.length >= ceil(log2(size))
+        
 
 
 

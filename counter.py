@@ -1,8 +1,4 @@
-import logisim
-from logisim import Vector,Net
-from logisim.adder import ADDER
-from logisim.mem import REG
-from logisim.oscillator import OSCILLATOR
+from logisim import *
 
 
 # example circuit, cnt <= cnt*2 + 1
@@ -37,8 +33,8 @@ REG(B,clock,cnt,0)   # 8 DFF-pet = 48 NAND gates
 one.set(1)
 
 # Simulate for 500 steps
-logisim.simulateTimeUnit(500)
+simulateTimeUnit(500)
 
 clock.VCDName("clk")
 cnt.VCDName("counter")
-logisim.generateVCD("adder.vcd")
+generateVCD("adder.vcd")
