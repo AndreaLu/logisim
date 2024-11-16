@@ -33,3 +33,31 @@ class MUX:
         
         for i in range(wordLen):
             OR( [j.nets[i] for j in inputInts], Output.nets[i] )
+
+class DEMUX:
+    def __init__(self,Input:Vector,Address:Vector,Outputs:tuple[Vector]):
+        wordLen = Input.length
+        for output in Outputs:
+            assert output.length == wordLen
+        size = len(Outputs)
+        addressSize = ceil(log2(size))
+        assert Address.length >= addressSize
+
+        index = -1
+        for output in Outputs:
+            index += 1
+            selector = Net()
+
+            addrNets = [] # list nof Nets to and to create the selector
+            for i in range(addressSize):
+                if (index >> i) & 1 == 1:
+                    addrNets.append( Address.nets[i] )
+                else:
+                    newNet = Net()
+                    NOT( (Address.nets[i],),newNet)
+                    addrNets.append( newNet )
+            AND( addrNets, selector )
+            
+            for i in range(wordLen):
+                AND( (Input.nets[i], selector), output.nets[i] )
+
