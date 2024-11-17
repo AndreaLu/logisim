@@ -42,6 +42,12 @@ class Vector:
     def set(self,word):
         for j in range(self.length):
             self.nets[j].set( (word >> j) & 1 )
+    
+    def get(self):
+        word = 0
+        for j in range(self.length):
+            word += self.nets[j].get() << j
+        return word
 
 
     def valueAtBinary(self,t):

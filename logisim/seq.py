@@ -1,4 +1,4 @@
-from .logisim import NAND,Net,Vector,BUFF,NOT,AND
+from .logisim import NAND,Net,Vector,BUFF,NOT,AND,Gate
 from .comb import MUX
 from math import log2,ceil
 
@@ -115,9 +115,60 @@ class REGFILE:
         MUX((dataOut,C),D, RE)
         REG(D,clock,dataOut)
 
+# Similar to a register file, but much faster to simulate
+# for big sizes
+class RAM(Gate):
+    def __init__(self, size:int, address:Vector, clock: Net, we: Net, re: Net, dataIn: Vector, dataOut: Vector):
+        Gate.__init__(self,None,None)
+        self.ram = [0]*size
+        self.clock = clock
+        self.dataIn = dataIn
+        assert (wordLen := dataIn.length) == wordLen
+        D = Vector(wordLen)
+        self.Dint = Vector(wordLen)
+
+        REG( D=D, clock=clock, Q=dataOut )
+        MUX(Inputs=(dataOut,self.Dint),Output=D,Sel=re)
+    
+    def Eval(self):
+        self.Dint.set(
+            self.ram[address.get()]
+        )
+        if self.clock.value[-2] == 1 and self.clock.value[-3] == 0 and we.value[-2] == 1:
+            self.ram[address.get()] = self.dataIn.get()
 
 
-            
+def pulse(t,min,max):
+    return 1 if t >= min and t <= max else 0
+
+if __name__ == "__main__":
+    from .logisim import simulateTimeUnit, writeVCD
+    # Test the ram
+    clk = Net()
+    address = Vector(16)
+    we = Net()
+    re = Net()
+    din = Vector(8)
+    do = Vector(8)
+
+
+    OSCILLATOR(10,clk)
+    ram = RAM(65536,address,clk,we,re,din,do)
+
+    address.set(10)
+    din.set(18)
+
+    for t in range(1000):
+        address.set(   10*pulse(t,0,100) + 32*pulse(t,101,200) + 84*pulse(t,201,300) + 10*pulse(t,400,500) )
+        we.set( pulse(t,45,60)  +  pulse(t,145,160)  + pulse(t, 245,260) )
+        re.set( pulse(t,345,360) + pulse(t,445,460) )
+        simulateTimeUnit(1)
+    
+    writeVCD("ram.vcd")
+
+
+
+
 
             
 

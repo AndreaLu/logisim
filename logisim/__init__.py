@@ -1,5 +1,8 @@
-__version__ = '1.1.0'
+__version__ = '1.1.1'
+from .logisim import *
 # Changelog:
+# 1.1.1
+# - Implemented RAM standard cell
 # 1.1.0
 # - Improved MUX and DEMUX to allow sel to be of type Net for 2-way muxes
 # - Optimization fo MUX and DEMUX to save logic gates on sel decoding
