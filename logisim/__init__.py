@@ -1,6 +1,11 @@
 __version__ = '1.1.1'
 from .logisim import *
 # Changelog:
+# 1.1.2
+# - Major improvement on basic gates as they can now be istantiated
+#   in multiple ways, even in parallel with a single istantiation
+# - Implemented XNOR
+# - Implemented arith.EQUALS using the new gates instantiation technique
 # 1.1.1
 # - Implemented RAM standard cell
 # 1.1.0

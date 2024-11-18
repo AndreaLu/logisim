@@ -1,5 +1,5 @@
 import logisim
-from .logisim import Net,Vector,XOR,AND,GND,OR
+from .logisim import Net,Vector,XOR,AND,GND,OR,XNOR
 from .seq import REG
 
 class HalfAdder:
@@ -34,5 +34,12 @@ class ADDER:
             )
 
 
+class EQUALS:
+    def __init__(self, A:Vector, B:Vector, Out:Net):
+        assert (wordLen := A.length) == B.length
+        _int = Vector(wordLen)
+        XNOR((A,B),_int)
+        AND(_int,Out)
+            
 
 

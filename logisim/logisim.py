@@ -13,13 +13,21 @@ class Net:
         self.name = ""
         self.isVector = False
         self.id = None
+        self.event = False
+        self.alreadySet = False
         
     def set(self,val):
+        assert self.alreadySet == False
         self.value[-1] = val
+        if len(self.value) == 1: self.event = False
+        elif val != self.value[-2]:
+            self.event = True
+
     def get(self):
         return self.value[-2]
         
     def advanceTime(self):
+        self.alreadySet = False
         self.value.append(self.value[-1])
 
     def VCDName(self,name):
@@ -64,8 +72,44 @@ class Vector:
 # Definition of all the basic logic gates
 # all logic gates can have a variable number of inputs and one output
 # with the exception of NOT gate, which has only one input and one output
+# Possibilities:
+# case0 inputs: collection(Vector(N)), outputs: Vector(N)
+# case1 inputs: collection(Net), output: Net
+# case2 inputs: Vector(N), output: Net
 class Gate:
-    def __init__(self, inputs : tuple[Net], output : Net):
+    def __init__(self, inputs : tuple[Net|Vector]|Vector, output : Net|Vector):
+        
+
+        if type(inputs) is list or type(inputs) is tuple:
+            # at least one input
+            assert len(inputs) > 0 
+            # all inputs of the same type
+            for input in inputs:
+                assert type(inputs[0]) == type(input)
+            assert type(output) == type(inputs[0])
+
+            if type(inputs[0]) is Vector:
+                # case 0) collection(vector), vector
+                assert type(output) is Vector
+                wordLen = output.length
+                for input in inputs:
+                    assert input.length == wordLen
+                for i in range(wordLen):
+                    type(self)([input.nets[i] for input in inputs],output.nets[i])
+                return
+            else:
+                # case 1) collection(net),net
+                pass
+            
+        else:
+            # case 3) Vector,net
+            assert type(output) is Net
+            assert type(inputs) is Vector
+            inputs = inputs.nets
+            # get back to case 1) collection(net),net
+
+        
+        # case 1) collection(net),net
         self.inputs = inputs
         self.output = output
         gates.append(self)
@@ -85,9 +129,13 @@ class NAND(Gate):
 class NOR(OR):
     def Eval(self):
         self.output.set(0 if 1 in [input.get() for input in self.inputs] else 1)
+
 class XOR(Gate):
     def Eval(self):
         self.output.set(1 if sum([input.get() for input in self.inputs]) == 1 else 0)
+class XNOR(Gate):
+    def Eval(self):
+        self.output.set(0 if sum([input.get() for input in self.inputs]) == 1 else 1)
 class BUFF(Gate):
     def Eval(self):
         self.output.set(self.inputs[0].get())
