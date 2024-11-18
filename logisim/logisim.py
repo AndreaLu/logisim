@@ -267,5 +267,6 @@ def writeVCD(fname):
 
     with open(fname,"w") as f:    
         f.write(retv)
+    print(f"Generated database file '{fname}'.\nOpen it up with a VCD viewer to browse the waveforms!")
 
 

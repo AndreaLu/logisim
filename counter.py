@@ -37,4 +37,4 @@ one.set(1)
 # Simulate for 500 steps
 simulateTimeUnit(500)
 
-writeVCD("adder.vcd")
+writeVCD("counter.vcd")
