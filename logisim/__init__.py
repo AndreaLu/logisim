@@ -1,6 +1,11 @@
-__version__ = '1.1.1'
+__version__ = '1.1.3'
 from .logisim import *
 # Changelog:
+# 1.1.3
+# - now VCD can contain an unlimited number of signals
+# - Cell type introduced. Now logic blocks classes can inherit from this
+#   type to let the library automatic VCD variable scan also recursively
+#   scan such instances to extract nets for export into VCD database
 # 1.1.2
 # - Major improvement on basic gates as they can now be istantiated
 #   in multiple ways, even in parallel with a single istantiation

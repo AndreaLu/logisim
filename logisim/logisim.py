@@ -2,9 +2,6 @@ gates = []   # All existing logic gates
 nets = []    # All existing nets
 vectors = [] # All existing vectors
 
-# TODOS:
-# - writeVCD should use a better algorithm to generate the
-#   signals ID so that it can generate an unlimited number of IDs
 
 class Net:
     def __init__(self):
@@ -30,7 +27,7 @@ class Net:
         self.alreadySet = False
         self.value.append(self.value[-1])
 
-    def VCDName(self,name):
+    def markForVCD(self,name):
         self.name = name
 
 # Collection of nets
@@ -64,7 +61,7 @@ class Vector:
             word += str(self.nets[self.length-j-1].value[t])
         return word
 
-    def VCDName(self,name):
+    def markForVCD(self,name):
         self.name = name
 
 
@@ -140,6 +137,12 @@ class BUFF(Gate):
     def Eval(self):
         self.output.set(self.inputs[0].get())
 
+# Basic type used to mark a class as suitable for automatic detection
+# for the generation of the VCD database
+class Cell:
+    def __init__(self):
+        pass
+
 def simulateTimeUnit(units=1):
     for i in range(units):
         for net in nets:
@@ -154,18 +157,31 @@ GND.set(0)
 VDD.set(1)
 
 
-# Generate the VCD file with the nets that have been named with VCDName method
+# Generate the VCD file with the nets/vectors that have been marked for VCD
 def writeVCD(fname):
     import inspect  # needed to automatically assign a name to nets
                     # using their respective variable names
     ids = []
-    def getID():
-        id = ""
-        for c in "abcdefghijklmnopqrstuvwxyz":
-            if id + c not in ids:
-                ids.append(id+c)
-                return id + c
-        return None
+
+    def generateNewID():
+        alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+        if generateNewID.lastID == "":
+            generateNewID.lastID = alphabet[0]
+            return alphabet[0]
+        
+        
+        lid = generateNewID.lastID
+        if lid[-1] == alphabet[-1]:
+            lid += alphabet[0]
+            generateNewID.lastID = lid
+            return lid
+        
+        lid = lid[:-1] + alphabet[ alphabet.index(lid[-1])+1 ]
+        generateNewID.lastID = lid
+        return lid
+    generateNewID.lastID = ""
+    
 
     retv = "$timescale 1ns $end\n"
     retv += "$scope module logic $end\n"
@@ -175,32 +191,44 @@ def writeVCD(fname):
     vectorsUpdate = []
     
     frame = inspect.currentframe().f_back
-    for var_name, var_val in frame.f_locals.items():
-        if type(var_val) is list or type(var_val) is tuple:
-            allNets = True
-            for child in var_val:
-                if type(child) not in (Vector,Net):
-                    allNets = False
-                    break
-            if allNets:
-                i = -1
-                for child in var_val:
-                    i += 1
-                    child.VCDName(f"{var_name}.net[{i}]")
-        if type(var_val) in (Net,Vector):
-            var_val.VCDName(var_name)
+    
+    def scanVarList(varList,prefix=""):
+        for var_name,var_val in varList:
+            if isinstance( var_val, Cell ):
+                _dict = {key: value for key, value in vars(var_val).items() if not callable(value)}
+                scanVarList( [ (key,_dict[key]) for key in _dict.keys()], prefix=(var_name + "."))
+            else:
+                if type(var_val) is list or type(var_val) is tuple:
+                    allNets = True
+                    for child in var_val:
+                        if type(child) not in (Vector,Net):
+                            allNets = False
+                            break
+                    if allNets:
+                        i = -1
+                        for child in var_val:
+                            i += 1
+                            child.markForVCD(f"{prefix}{var_name}.net[{i}]")
+                if type(var_val) in (Net,Vector):
+                    var_val.markForVCD(f"{prefix}{var_name}")
+    
+    # scan all the local variables where writeVCD is called and mark
+    # for inertion in the VCD all variables of time Net or Vector
+    # Recursively enter instances inheriting from Cell type
+    scanVarList(frame.f_locals.items())
+
 
     # Generate the VCD IDs for the nets/vectors with a name
     for net in nets:
         if net.name == "": continue
         if net.isVector: continue
-        net.id = getID()
+        net.id = generateNewID()
         if net.id is None:
             raise Exception("too many signals!")
         retv += f"$var wire 1 {net.id} {net.name} $end\n"
     for vector in vectors:
         if vector.name == "": continue
-        vector.id = getID()
+        vector.id = generateNewID()
         if vector.id is None: raise Exception("too many signals!")
         retv += f"$var wire {vector.length} {vector.id} {vector.name} $end\n"
     retv += "$enddefinitions $end\n"
