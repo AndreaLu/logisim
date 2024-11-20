@@ -1,4 +1,4 @@
-from .logisim import NAND,Net,Vector,BUFF,NOT,AND,Gate
+from .logisim import NAND,Net,Vector,BUFF,NOT,AND,Gate,gates
 from .comb import MUX
 from math import log2,ceil
 
@@ -119,7 +119,9 @@ class REGFILE:
 # for big sizes
 class RAM(Gate):
     def __init__(self, size:int, address:Vector, clock: Net, we: Net, re: Net, dataIn: Vector, dataOut: Vector):
-        Gate.__init__(self,None,None)
+        gates.append(self)
+        self.we = we
+        self.address = address
         self.ram = [0]*size
         self.clock = clock
         self.dataIn = dataIn
@@ -132,10 +134,10 @@ class RAM(Gate):
     
     def Eval(self):
         self.Dint.set(
-            self.ram[address.get()]
+            self.ram[self.address.get()]
         )
-        if self.clock.value[-2] == 1 and self.clock.value[-3] == 0 and we.value[-2] == 1:
-            self.ram[address.get()] = self.dataIn.get()
+        if self.clock.value[-2] == 1 and self.clock.value[-3] == 0 and self.we.value[-2] == 1:
+            self.ram[self.address.get()] = self.dataIn.get()
 
 
 def pulse(t,min,max):

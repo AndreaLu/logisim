@@ -110,6 +110,7 @@ class Gate:
         self.inputs = inputs
         self.output = output
         gates.append(self)
+        return output
 
 class AND(Gate):
     def Eval(self):
