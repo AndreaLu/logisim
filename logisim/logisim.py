@@ -160,11 +160,13 @@ class Cell:
         pass
 
 def simulateTimeUnit(units=1):
+    print(f"Simulating {len(gates)}-gates circuit for {units} ticks...")
     for i in range(units):
         for net in nets:
             net.advanceTime()
         for gate in gates:
             gate.Eval()
+    print("Simulation finished!")
 
 
 GND = Net()
@@ -283,6 +285,6 @@ def writeVCD(fname):
 
     with open(fname,"w") as f:    
         f.write(retv)
-    print(f"Generated database file '{fname}'.\nOpen it up with a VCD viewer to browse the waveforms!")
+    print(f"Generated database file '{fname}' with simulation results.\nOpen it up with a VCD viewer to browse the waveforms!")
 
 
