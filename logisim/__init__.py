@@ -1,6 +1,14 @@
 __version__ = '1.1.3'
 from .logisim import *
 # Changelog:
+# 1.1.4
+# - defined Process class to let the user create some logic in a manner
+#   similar to processes in VHDL, so with some more abstraction as an
+#   alternative to istantiating logic gates. This has ideal performance,
+#   so just 1 step simulation delay independent of the complexity 
+#   and much lower simulation cost. Great for quickly prototyping 
+#   or to create ideal models which don't slow simulation down.
+#   An example of Process is currently in ./examples/CPU/Controller.py
 # 1.1.3
 # - now VCD can contain an unlimited number of signals
 # - Cell type introduced. Now logic blocks classes can inherit from this

@@ -63,6 +63,22 @@ class Vector:
 
     def markForVCD(self,name):
         self.name = name
+    
+    def __getitem__(self,key):
+        if isinstance(key,slice):
+            indices = range(*key.indices(len(self.nets)))
+            newVector = Vector(len(indices))
+            newVector.nets = [self.nets[i] for i in indices]
+            vectors.remove(newVector)
+            return newVector
+
+        return self.nets[key]
+
+class PROCESS:
+    def __init__(self,Eval):
+        gates.append(self)
+        self.Eval = Eval
+
 
 
 
@@ -110,7 +126,6 @@ class Gate:
         self.inputs = inputs
         self.output = output
         gates.append(self)
-        return output
 
 class AND(Gate):
     def Eval(self):
