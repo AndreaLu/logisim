@@ -66,6 +66,7 @@ class Controller(Cell):
                 BWE.set(0)
                 CWE.set(0)
                 DWE.set(0)
+                DMemWE.set(0)
             else:
                 DMemRE.set(0)
 
@@ -103,13 +104,31 @@ class Controller(Cell):
                         elif src == OP.IM:
                             RegMuxSel.set( REGMUXSEL.IMMEDIATE )
                     elif dst in (OP.REG2MEM,OP.IM2MEM):
-                        pass
+                        if src == OP.REGA: DMemDinMuxSel.set(DMEMDINMUXSEL.REGA)
+                        elif src == OP.REGB: DMemDinMuxSel.set(DMEMDINMUXSEL.REGB)
+                        elif src == OP.REGC: DMemDinMuxSel.set(DMEMDINMUXSEL.REGC)
+                        elif src == OP.REGD: DMemDinMuxSel.set(DMEMDINMUXSEL.REGD)
+                        elif src == OP.IM: DMemDinMuxSel.set(DMEMDINMUXSEL.IMMEDIATE)
+                        if dst == OP.REG2MEM:
+                            DMemAddrMuxSel.set(
+                                (DMEMADDRMUXSEL.REGA,
+                                DMEMADDRMUXSEL.REGB,
+                                DMEMADDRMUXSEL.REGC,
+                                DMEMADDRMUXSEL.REGD)[
+                                    (Instruction.get() >> 30) & 0b11
+                                ]
+                            )
+     
+                        else:
+                            DMemAddrMuxSel.set( DMEMADDRMUXSEL.IMMEDIATE )
                 elif sigStateQ.get() == STATE.EXECUTE:
-                    
                     if dst == OP.REGA: AWE.set(1)
                     elif dst == OP.REGB: BWE.set(1)
                     elif dst == OP.REGC: CWE.set(1)
                     elif dst == OP.REGD: DWE.set(1)
+                    elif dst in (OP.REG2MEM,OP.IM2MEM):
+                        DMemWE.set(1)
+
 
         PROCESS(p)
 

@@ -71,3 +71,10 @@ class DMEMADDRMUXSEL(int,Enum):
     REGB      = 2
     REGC      = 3
     REGD      = 4
+
+class DMEMDINMUXSEL(int,Enum):
+    IMMEDIATE = 0
+    REGA      = 1
+    REGB      = 2
+    REGC      = 3
+    REGD      = 4

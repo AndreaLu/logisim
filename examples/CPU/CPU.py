@@ -45,14 +45,18 @@ MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ),Output=sigMemAddr,Sel=sigMemAddrSel)
 MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ),Output=sigMemDin,Sel=sigMemDinSel)
 dmem = RAM(size=65536,address=sigMemAddr,clock=clk,we=sigMemWE,re=sigMemRE,dataIn=sigMemDin,dataOut=sigMemDout)
 dmem.ram[82] = 63320
+dmem.ram[112] = 37
 
 # Instruction Memory
 sigIMemDout = Vector(32)
 imem = RAM(size=65536,address=sigIMemAddr,clock=clk,we=GND,re=sigIMemRE,dataIn=cZero32,dataOut=sigIMemDout)
-imem.ram[0] = OPCODE.NOP.value
-imem.ram[1] = OPCODE.MOV.value | (OP.REGA.value << 8) | (OP.IM.value << 11) | (17 << 14)
-imem.ram[2] = OPCODE.MOV.value | (OP.REGB.value << 8) | (OP.REGA.value << 11)
-imem.ram[3] = OPCODE.MOV.value | (OP.REGC.value << 8) | (OP.IM2MEM.value << 11) | (82 << 14)
+imem.ram[0] = OPCODE.NOP
+imem.ram[1] = OPCODE.MOV | (OP.REGA << 8)    | (OP.IM << 11)      | (112 << 14)     | 0
+imem.ram[2] = OPCODE.MOV | (OP.REGB << 8)    | (OP.REGA << 11)    | 0               | 0
+imem.ram[3] = OPCODE.MOV | (OP.REGC << 8)    | (OP.IM2MEM << 11)  | (82 << 14)      | 0
+imem.ram[4] = OPCODE.MOV | (OP.REGD << 8)    | (OP.REG2MEM << 11) | 0               | (OP.REGC << 30)
+#imem.ram[6] = OPCODE.MOV | (OP.REG2MEM << 8) | (OP.REGC << 11)    | 0               | (OP.REGB << 30)
+imem.ram[7] = OPCODE.MOV | (OP.IM2MEM << 8)  | (OP.REGA)          | (32 << 14)      | 0
 
 
 # Controller
@@ -77,5 +81,10 @@ controller = Controller(
     DWE=sigDWE
 )
 
-simulateTimeUnit(3000)
+simulateTimeUnit(3600)
+# Store the ram to a file to make it easier to debug
+with open("ram.hex","wb") as fout:
+    for word in dmem.ram:
+        fout.write(bytes([word & 0xFF,(word >> 8) & 0xFF ]))
+
 writeVCD("cpu.vcd")
