@@ -10,13 +10,13 @@ from math import ceil, log2
 
 # In MOV instructions:
 # the syntax is MOV TYPE | DST | SRC
-# MOVRR REG(2bit) | REG(2bit)
-# MOVRI REG(2bit) | IMMEDIATE(16bit)
-# MOVRD REG(2bit) | IMMEDIATE ADDRESS(16 bit)
-# MOVRM REG(2bit) | REG ADDRESS(2 bit)
-# MOVMR REG ADDRESS(2 bit) | REG(2 bit)
-# MOVMI REG ADDRESS(2 BIT) | IMMEDIATE(16 bit)
-# MOVDR IMMEDIATE ADDRESS (16 bit) | REG(2 bit)
+# MOVRR REG(2bit) | REG(2bit)                   OK
+# MOVRI REG(2bit) | IMMEDIATE(16bit)            OK
+# MOVRD REG(2bit) | IMMEDIATE ADDRESS(16 bit)   OK
+# MOVRM REG(2bit) | REG ADDRESS(2 bit)          OK
+# MOVMR REG ADDRESS(2 bit) | REG(2 bit)         TEST
+# MOVMI REG ADDRESS(2 BIT) | IMMEDIATE(16 bit)  TEST
+# MOVDR IMMEDIATE ADDRESS (16 bit) | REG(2 bit) TEST
 
 # in ALU instructions:
 # the syntax is ADD DST A B
@@ -28,7 +28,7 @@ from math import ceil, log2
 INSTRUCTION_LENGTH = 32
 INSTRUCTION_OPCODE_LENGTH = 8
 
-class OP(Enum):
+class OP(int,Enum):
     def _generate_next_value_(name, start, count, last_values):
         return count
     REGA    = auto()
@@ -39,7 +39,7 @@ class OP(Enum):
     IM2MEM  = auto()   # MEMORY AT IMMEDIATE ADDRESS
     IM      = auto()   # operand is a constant immediate value
 
-class OPCODE(Enum):
+class OPCODE(int,Enum):
     def _generate_next_value_(name, start, count, last_values):
         return count
     NOP   = auto() # NOP is 0
@@ -47,17 +47,17 @@ class OPCODE(Enum):
 
     COUNT = auto() # This is not an opcode, but the number of opcodes
 
-assert log2(OPCODE.COUNT.value) <= 8
+assert log2(OPCODE.COUNT) <= 8
 
-class STATE(Enum):
+class STATE(int,Enum):
     def _generate_next_value_(name, start, count, last_values):
         return count
     FETCH   = auto()
     EXECUTE = auto()
     SIZE    = auto()
-StateSize = ceil(log2(STATE.SIZE.value))
+StateSize = ceil(log2(STATE.SIZE))
 
-class REGMUXSEL(Enum):
+class REGMUXSEL(int,Enum):
     IMMEDIATE = 0
     REGA      = 1
     REGB      = 2
@@ -65,7 +65,7 @@ class REGMUXSEL(Enum):
     REGD      = 4
     MEMORY    = 5
 
-class DMEMADDRMUXSEL(Enum):
+class DMEMADDRMUXSEL(int,Enum):
     IMMEDIATE = 0
     REGA      = 1
     REGB      = 2

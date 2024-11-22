@@ -34,8 +34,8 @@ class Controller(Cell):
         sigStateIsFetch = Net()
         sigStateIsExecute = Net()
         (cOneS := Vector(StateSize)).set(1)
-        (cFetch := Vector(StateSize)).set(STATE.FETCH.value)
-        (cExecute := Vector(StateSize)).set(STATE.EXECUTE.value)
+        (cFetch := Vector(StateSize)).set(STATE.FETCH)
+        (cExecute := Vector(StateSize)).set(STATE.EXECUTE)
         EQUALS(A=sigStateQ,B=cFetch,Out=sigStateIsFetch)
         EQUALS(A=sigStateQ,B=cExecute,Out=sigStateIsExecute)
 
@@ -61,7 +61,7 @@ class Controller(Cell):
         #BUFF(inputs=Instruction.nets[8+6:8+6+16],output=Immediate)
 
         def p():
-            if sigStateQ.get() == STATE.FETCH.value:
+            if sigStateQ.get() == STATE.FETCH:
                 AWE.set(0)
                 BWE.set(0)
                 CWE.set(0)
@@ -70,44 +70,46 @@ class Controller(Cell):
                 DMemRE.set(0)
 
             # MOV Instruction
-            if Instruction.get() & 0xFF == OPCODE.MOV.value:
+            if Instruction.get() & 0xFF == OPCODE.MOV:
                 dst = (Instruction.get() >> 8) & 0b111   # op1 = instr[8:11] = dst
                 src = (Instruction.get() >> 11) & 0b111 # op2 = instr[11:14] = src
-                if sigStateQ.get() == STATE.FETCH.value:
+                if sigStateQ.get() == STATE.FETCH:
                     # Destination is a register
-                    if dst in (OP.REGA.value,OP.REGB.value,OP.REGC.value,OP.REGD.value):
-                        if src == OP.REGA.value:
-                            RegMuxSel.set( REGMUXSEL.REGA.value )
-                        elif src == OP.REGB.value:
-                            RegMuxSel.set( REGMUXSEL.REGB.value )
-                        elif src == OP.REGC.value:
-                            RegMuxSel.set( REGMUXSEL.REGC.value )
-                        elif src == OP.REGD.value:
-                            RegMuxSel.set( REGMUXSEL.REGD.value )
-                        elif src in (OP.IM2MEM.value,OP.REG2MEM.value):
-                            RegMuxSel.set( REGMUXSEL.MEMORY.value )
-                            if src == OP.IM2MEM.value:
-                                DMemAddrMuxSel.set(DMEMADDRMUXSEL.IMMEDIATE.value)
+                    if dst in (OP.REGA,OP.REGB,OP.REGC,OP.REGD):
+                        if src == OP.REGA:
+                            RegMuxSel.set( REGMUXSEL.REGA )
+                        elif src == OP.REGB:
+                            RegMuxSel.set( REGMUXSEL.REGB )
+                        elif src == OP.REGC:
+                            RegMuxSel.set( REGMUXSEL.REGC )
+                        elif src == OP.REGD:
+                            RegMuxSel.set( REGMUXSEL.REGD )
+                        elif src in (OP.IM2MEM,OP.REG2MEM):
+                            RegMuxSel.set( REGMUXSEL.MEMORY )
+                            if src == OP.IM2MEM:
+                                DMemAddrMuxSel.set(DMEMADDRMUXSEL.IMMEDIATE)
                                 DMemRE.set(1)
                             else:
                                 DMemAddrMuxSel.set(
-                                    (DMEMADDRMUXSEL.REGA.value,
-                                    DMEMADDRMUXSEL.REGB.value,
-                                    DMEMADDRMUXSEL.REGC.value,
-                                    DMEMADDRMUXSEL.REGD.value)[
+                                    (DMEMADDRMUXSEL.REGA,
+                                    DMEMADDRMUXSEL.REGB,
+                                    DMEMADDRMUXSEL.REGC,
+                                    DMEMADDRMUXSEL.REGD)[
                                         (Instruction.get() >> 30) & 0b11
                                     ]
                                 )
                                 DMemRE.set(1)
 
                         elif src == OP.IM:
-                            RegMuxSel.set( REGMUXSEL.IMMEDIATE.value )
-                elif sigStateQ.get() == STATE.EXECUTE.value:
+                            RegMuxSel.set( REGMUXSEL.IMMEDIATE )
+                    elif dst in (OP.REG2MEM,OP.IM2MEM):
+                        pass
+                elif sigStateQ.get() == STATE.EXECUTE:
                     
-                    if dst == OP.REGA.value: AWE.set(1)
-                    elif dst == OP.REGB.value: BWE.set(1)
-                    elif dst == OP.REGC.value: CWE.set(1)
-                    elif dst == OP.REGD.value: DWE.set(1)
+                    if dst == OP.REGA: AWE.set(1)
+                    elif dst == OP.REGB: BWE.set(1)
+                    elif dst == OP.REGC: CWE.set(1)
+                    elif dst == OP.REGD: DWE.set(1)
 
         PROCESS(p)
 
