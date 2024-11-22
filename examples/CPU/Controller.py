@@ -1,23 +1,12 @@
-from enum import Enum, auto
-from math import ceil,log2
 import sys
 
 sys.path.append("../../") # let python find logisim
 
-from logisim import Cell,Net,Vector,BUFF,Gate,OR,AND
+from logisim import Cell,Net,Vector,BUFF,Gate,OR,AND,PROCESS
 from logisim.arith import EQUALS,ADDER
 from logisim.seq import REG,WEREG
 from logisim.comb import MUX
-from CPU import OPCODE,INSTRUCTION_OPCODE_LENGTH
-
-class STATE(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        return count
-    FETCH   = auto()
-    EXECUTE = auto()
-    SIZE    = auto()
-
-StateSize = ceil(log2(STATE.SIZE.value))
+from CPUDefs import *
 
 class Controller(Cell):
     def __init__(self,
@@ -65,29 +54,68 @@ class Controller(Cell):
         BUFF(inputs=(sigPCQ,),output=IMemAddr)
         BUFF(inputs=(sigStateIsExecute,),output=IMemRE)
 
-        # MOV INSTRUCTIONS
-        (cMOVRR := Vector(INSTRUCTION_OPCODE_LENGTH)).set(OPCODE.MOVRR)
-        EQUALS(A=Insturction,B=cMOVRR,Out=(sigInstrIsMOVRR := Net()))
         
+        # Immediate 
+        for i in range(16):
+            BUFF(inputs=(Instruction.nets[i+8+6],),output=Immediate.nets[i])
+        #BUFF(inputs=Instruction.nets[8+6:8+6+16],output=Immediate)
+
+        def p():
+            if sigStateQ.get() == STATE.FETCH.value:
+                AWE.set(0)
+                BWE.set(0)
+                CWE.set(0)
+                DWE.set(0)
+            else:
+                DMemRE.set(0)
+
+            # MOV Instruction
+            if Instruction.get() & 0xFF == OPCODE.MOV.value:
+                dst = (Instruction.get() >> 8) & 0b111   # op1 = instr[8:11] = dst
+                src = (Instruction.get() >> 11) & 0b111 # op2 = instr[11:14] = src
+                if sigStateQ.get() == STATE.FETCH.value:
+                    # Destination is a register
+                    if dst in (OP.REGA.value,OP.REGB.value,OP.REGC.value,OP.REGD.value):
+                        if src == OP.REGA.value:
+                            RegMuxSel.set( REGMUXSEL.REGA.value )
+                        elif src == OP.REGB.value:
+                            RegMuxSel.set( REGMUXSEL.REGB.value )
+                        elif src == OP.REGC.value:
+                            RegMuxSel.set( REGMUXSEL.REGC.value )
+                        elif src == OP.REGD.value:
+                            RegMuxSel.set( REGMUXSEL.REGD.value )
+                        elif src in (OP.IM2MEM.value,OP.REG2MEM.value):
+                            RegMuxSel.set( REGMUXSEL.MEMORY.value )
+                            if src == OP.IM2MEM.value:
+                                DMemAddrMuxSel.set(DMEMADDRMUXSEL.IMMEDIATE.value)
+                                DMemRE.set(1)
+                            else:
+                                DMemAddrMuxSel.set(
+                                    (DMEMADDRMUXSEL.REGA.value,
+                                    DMEMADDRMUXSEL.REGB.value,
+                                    DMEMADDRMUXSEL.REGC.value,
+                                    DMEMADDRMUXSEL.REGD.value)[
+                                        (Instruction.get() >> 30) & 0b11
+                                    ]
+                                )
+                                DMemRE.set(1)
+
+                        elif src == OP.IM:
+                            RegMuxSel.set( REGMUXSEL.IMMEDIATE.value )
+                elif sigStateQ.get() == STATE.EXECUTE.value:
+                    
+                    if dst == OP.REGA.value: AWE.set(1)
+                    elif dst == OP.REGB.value: BWE.set(1)
+                    elif dst == OP.REGC.value: CWE.set(1)
+                    elif dst == OP.REGD.value: DWE.set(1)
+
+        PROCESS(p)
+
+
+
         
-        OR(
-        inputs=(
-            AND(
-            inputs=(
-                sigInstrIsMOVRR,
-                
-            ), ouptut=Net()
-            )
-        ),
-        output=RegMuxSel
-        )
 
-
-
-
-        
-
-if __name__ == "__main__":*
+if __name__ == "__main__":
     from logisim.seq import OSCILLATOR
     from logisim import simulateTimeUnit,writeVCD
     clk = Net()
