@@ -1,4 +1,4 @@
-from .logisim import Vector,NOT,Net,AND,OR
+from .logisim import Vector,NOT,Net,AND,OR,VDD
 from math import log2, ceil
 
 class MUX:
@@ -101,7 +101,10 @@ class DEMUX:
             for i in range(wordLen):
                 AND( (Input.nets[i], outputSelector), output.nets[i] )
 
-
+class DECODER:
+    def __init__(self,Input : Vector, Outputs : Vector):
+        assert Outputs.length == 2**(Input.length)
+        DEMUX(Input=VDD,Outputs=Outputs,Sel=Input)
 
 # Test procedure, run with `python -m logisim.comb`
 if __name__ == "__main__":
