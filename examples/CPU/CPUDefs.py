@@ -1,5 +1,12 @@
+import sys
+
+sys.path.append("../../") # let python find logisim
+
 from enum import Enum, auto
 from math import ceil, log2
+from dataclasses import dataclass
+from logisim import Net,Vector,Cell
+
 # An instruction is 32 bit long
 # In an instruction, only the opcode is fixed size (8 bits)
 # The remaining 24 bits depend on the instruction
@@ -22,30 +29,44 @@ from math import ceil, log2
 # the syntax is ADD DST A B
 # ADDRR REG(2bit) | REG(2bit) | REG(2bit)
 # ADDRI REG(2bit) | REG(2bit) | Immediate(16 bit)
-# ADDRM REG(2bit) | REG ADDRESS(2 bit)
-# ADDRD REG(2bit) | IMMEDIATE ADDRESS(16 bit)
+
 
 INSTRUCTION_LENGTH = 32
 INSTRUCTION_OPCODE_LENGTH = 8
 
-class OP(int,Enum):
+class MOVOP(int,Enum):
     def _generate_next_value_(name, start, count, last_values):
         return count
-    REGA    = auto()
-    REGB    = auto()
-    REGC    = auto()
-    REGD    = auto()
+    A       = auto()
+    B       = auto()
+    C       = auto()
+    D       = auto()
     REG2MEM = auto()   # MEMORY AT REGISTER ADDRESS, bits 30 and 31 indicate the register
     IM2MEM  = auto()   # MEMORY AT IMMEDIATE ADDRESS
     IM      = auto()   # operand is a constant immediate value
 
+class ADDOP(int,Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return count
+    A = auto()
+    B = auto()
+    C = auto()
+    D = auto()
+    IMMEDIATE = auto()
+
 class OPCODE(int,Enum):
     def _generate_next_value_(name, start, count, last_values):
         return count
-    NOP   = auto() # NOP is 0
-    MOV   = auto() 
+    NOP   = auto() # NOP - do nothing
+    MOV   = auto() # MOV - move a word from/to registers,immediate and memory
+    ADD   = auto() # ADD - sum two words
+    SUB   = auto() # SUB - subtract two words
+    SFL   = auto() # SFL - Shift left (arithmetic or logic) a register
+    SFR   = auto() # SFR - Shift right (arithmetic or logic) a register
+    ROTL  = auto() # ROTL - Rotate lef a register
+    ROTR  = auto() # ROTR - Rotate right a register
 
-    COUNT = auto() # This is not an opcode, but the number of opcodes
+    COUNT = auto() # Number of defined opcodes
 
 assert log2(OPCODE.COUNT) <= 8
 
@@ -78,3 +99,21 @@ class DMEMDINMUXSEL(int,Enum):
     REGB      = 2
     REGC      = 3
     REGD      = 4
+
+# ALU
+class ALUOpType(int,Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return count
+    ADD = auto()
+    SUB = auto()
+    ROTR = auto()
+    ROTL = auto()
+    SHIFTR = auto()
+    SHIFTL = auto()
+    MAX = auto()
+
+
+class ALUControl(Cell):
+    opType : Vector
+    def __init__(self):
+        self.opType =  Vector(ceil(log2(ALUOpType.MAX-1)))
