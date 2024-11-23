@@ -140,12 +140,13 @@ class ControlUnit(Cell):
                 elif op == MOVOP.C: ALUMuxA.set(DMEMADDRMUXSEL.REGC)
                 elif op == MOVOP.D: ALUMuxA.set(DMEMADDRMUXSEL.REGD)
                 elif op == MOVOP.IM: ALUMuxA.set(DMEMADDRMUXSEL.IMMEDIATE)
+                else: raise Exception(f"invalid first operand value {hex(op)} in ADD instruction {hex(instruction)}")
                 op = (instruction >> 11) & 0b111
                 if op == MOVOP.A: ALUMuxB.set(DMEMADDRMUXSEL.REGA)
                 elif op == MOVOP.B: ALUMuxB.set(DMEMADDRMUXSEL.REGB)
                 elif op == MOVOP.C: ALUMuxB.set(DMEMADDRMUXSEL.REGC)
                 elif op == MOVOP.D: ALUMuxB.set(DMEMADDRMUXSEL.REGD)
-                elif op == MOVOP.IM: ALUMuxB.set(DMEMADDRMUXSEL.IMMEDIATE)
+                else: raise Exception(f"invalid second operand value {hex(op)} in ADD instruction {hex(instruction)}")
 
 
                 if sigStateQ.get() == STATE.EXECUTE:
