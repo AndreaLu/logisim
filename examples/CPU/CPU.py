@@ -21,7 +21,7 @@ sigAQ, sigAWE = Vector(16), Net()
 sigBQ, sigBWE = Vector(16), Net()
 sigCQ, sigCWE = Vector(16), Net()
 sigDQ, sigDWE = Vector(16), Net()
-sigALU,sigALUA,sigALUB = Vector(16),Vector(16),Vector(16)
+sigALU = Vector(16)
 sigRegD = Vector(16)
 sigIm = Vector(16)
 sigMemDout = Vector(16)
@@ -56,13 +56,16 @@ dmem.ram[112] = 37
 # Instruction Memory
 sigIMemDout = Vector(32)
 imem = RAM(size=65536,address=sigIMemAddr,clock=clk,we=GND,re=sigIMemRE,dataIn=cZero32,dataOut=sigIMemDout)
-imem.ram[0] = OPCODE.NOP
-imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)      | (MOVOP.IM << 11)      | (112 << 14)     | 0
-imem.ram[2] = OPCODE.MOV | (MOVOP.B << 8)      | (MOVOP.A << 11)       | 0               | 0
-imem.ram[3] = OPCODE.MOV | (MOVOP.C << 8)      | (MOVOP.IM2MEM << 11)  | (82 << 14)      | 0
-imem.ram[4] = OPCODE.MOV | (MOVOP.D << 8)      | (MOVOP.REG2MEM << 11) | 0               | (MOVOP.C << 30)
-#imem.ram[6]= OPCODE.MOV | (OP.REG2MEM << 8)   | (OP.REGC << 11)       | 0               | (OP.B << 30)
-imem.ram[7] = OPCODE.MOV | (MOVOP.IM2MEM << 8) | (MOVOP.A)             | (32 << 14)      | 0
+imem.ram[0] = OPCODE.NOP                                                                                     # nop
+#imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)      | (MOVOP.IM << 11)       | (112 << 14)     | 0                # mov $a 112
+#imem.ram[2] = OPCODE.MOV | (MOVOP.B << 8)      | (MOVOP.A << 11)        | 0               | 0                # mov $b $a
+#imem.ram[3] = OPCODE.MOV | (MOVOP.C << 8)      | (MOVOP.IM2MEM << 11)   | (82 << 14)      | 0                # mov $c #82
+#imem.ram[4] = OPCODE.MOV | (MOVOP.D << 8)      | (MOVOP.REG2MEM << 11)  | 0               | (MOVOP.C << 30)  # mov $d #c 
+#imem.ram[5] = OPCODE.MOV | (MOVOP.IM2MEM << 8) | (MOVOP.A)              | (32 << 14)      | 0                # mov #32 $A
+
+
+imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)      | (MOVOP.IM << 11)        | (1588 << 14)    | 0                # mov $a 1588
+imem.ram[2] = OPCODE.ADD | (ADDOP.A << 8)      | (ADDOP.IMMEDIATE << 11) | (250 << 14)     | (MOVOP.A << 30)  # add A 250 A
 
 
 # Controller
@@ -85,10 +88,22 @@ controller = ControlUnit(
     BWE=sigBWE,
     CWE=sigCWE,
     DWE=sigDWE,
-    ALUCntrl=(sigALUControl := ALUControl())
+    ALUCntrl=(sigALUControl := ALUControl()),
+    ALUMuxA=(sigALUMuxA:=Vector(3)),
+    ALUMuxB=(sigALUMuxB:=Vector(3))
 )
 
-ALU(ctrl=sigALUControl,A=sigALUA,B=sigALUB,Out=sigALU,Carry=Net(),Overflow=Net(),Zero=Net())
+MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ),Output=(sigALUA:=Vector(16)),Sel=sigALUMuxA)
+MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ),Output=(sigALUB:=Vector(16)),Sel=sigALUMuxB)
+ALU(
+    ctrl=sigALUControl,
+    A=sigALUA,
+    B=sigALUB,
+    Out=sigALU,
+    Carry=Net(),
+    Overflow=Net(),
+    Zero=Net()
+)
 
 simulateTimeUnit(3600)
 # Store the ram to a file to make it easier to debug

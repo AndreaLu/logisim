@@ -85,6 +85,7 @@ class REGMUXSEL(int,Enum):
     REGC      = 3
     REGD      = 4
     MEMORY    = 5
+    ALU       = 6
 
 class DMEMADDRMUXSEL(int,Enum):
     IMMEDIATE = 0

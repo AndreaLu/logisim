@@ -26,7 +26,9 @@ class ControlUnit(Cell):
         BWE : Net,
         CWE : Net,
         DWE : Net,
-        ALUCntrl : ALUControl
+        ALUCntrl : ALUControl,
+        ALUMuxA : Vector,
+        ALUMuxB : Vector
         ):
 
         sigStateQ = Vector(StateSize)
@@ -72,7 +74,9 @@ class ControlUnit(Cell):
                 DMemRE.set(0)
 
             # MOV Instruction
-            if Instruction.get() & 0xFF == OPCODE.MOV:
+            instruction = Instruction.get()
+            opcode = instruction & 0xFF
+            if opcode == OPCODE.MOV:
                 dst = (Instruction.get() >> 8) & 0b111   # op1 = instr[8:11] = dst
                 src = (Instruction.get() >> 11) & 0b111 # op2 = instr[11:14] = src
                 if sigStateQ.get() == STATE.FETCH:
@@ -129,7 +133,28 @@ class ControlUnit(Cell):
                     elif dst == MOVOP.D: DWE.set(1)
                     elif dst in (MOVOP.REG2MEM,MOVOP.IM2MEM):
                         DMemWE.set(1)
+            elif opcode == OPCODE.ADD:
+                op = (instruction >> 8) & 0b111
+                if op == MOVOP.A: ALUMuxA.set(DMEMADDRMUXSEL.REGA)
+                elif op == MOVOP.B: ALUMuxA.set(DMEMADDRMUXSEL.REGB)
+                elif op == MOVOP.C: ALUMuxA.set(DMEMADDRMUXSEL.REGC)
+                elif op == MOVOP.D: ALUMuxA.set(DMEMADDRMUXSEL.REGD)
+                elif op == MOVOP.IM: ALUMuxA.set(DMEMADDRMUXSEL.IMMEDIATE)
+                op = (instruction >> 11) & 0b111
+                if op == MOVOP.A: ALUMuxB.set(DMEMADDRMUXSEL.REGA)
+                elif op == MOVOP.B: ALUMuxB.set(DMEMADDRMUXSEL.REGB)
+                elif op == MOVOP.C: ALUMuxB.set(DMEMADDRMUXSEL.REGC)
+                elif op == MOVOP.D: ALUMuxB.set(DMEMADDRMUXSEL.REGD)
+                elif op == MOVOP.IM: ALUMuxB.set(DMEMADDRMUXSEL.IMMEDIATE)
 
+
+                if sigStateQ.get() == STATE.EXECUTE:
+                    RegMuxSel.set( REGMUXSEL.ALU )
+                    dst = (instruction >> 30) & 0b11
+                    if dst == MOVOP.A: AWE.set(1)
+                    elif dst == MOVOP.B: BWE.set(1)
+                    elif dst == MOVOP.C: CWE.set(1)
+                    elif dst == MOVOP.D: DWE.set(1)
 
         PROCESS(p)
 
