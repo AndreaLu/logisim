@@ -8,7 +8,7 @@ from logisim.seq import REG,WEREG
 from logisim.comb import MUX
 from CPUDefs import *
 
-class Controller(Cell):
+class ControlUnit(Cell):
     def __init__(self,
         # Inputs
         Instruction : Vector,
@@ -25,7 +25,8 @@ class Controller(Cell):
         AWE : Net,
         BWE : Net,
         CWE : Net,
-        DWE : Net
+        DWE : Net,
+        ALUCntrl : ALUControl
         ):
 
         sigStateQ = Vector(StateSize)
@@ -76,18 +77,18 @@ class Controller(Cell):
                 src = (Instruction.get() >> 11) & 0b111 # op2 = instr[11:14] = src
                 if sigStateQ.get() == STATE.FETCH:
                     # Destination is a register
-                    if dst in (OP.REGA,OP.REGB,OP.REGC,OP.REGD):
-                        if src == OP.REGA:
+                    if dst in (MOVOP.A,MOVOP.B,MOVOP.C,MOVOP.D):
+                        if src == MOVOP.A:
                             RegMuxSel.set( REGMUXSEL.REGA )
-                        elif src == OP.REGB:
+                        elif src == MOVOP.B:
                             RegMuxSel.set( REGMUXSEL.REGB )
-                        elif src == OP.REGC:
+                        elif src == MOVOP.C:
                             RegMuxSel.set( REGMUXSEL.REGC )
-                        elif src == OP.REGD:
+                        elif src == MOVOP.D:
                             RegMuxSel.set( REGMUXSEL.REGD )
-                        elif src in (OP.IM2MEM,OP.REG2MEM):
+                        elif src in (MOVOP.IM2MEM,MOVOP.REG2MEM):
                             RegMuxSel.set( REGMUXSEL.MEMORY )
-                            if src == OP.IM2MEM:
+                            if src == MOVOP.IM2MEM:
                                 DMemAddrMuxSel.set(DMEMADDRMUXSEL.IMMEDIATE)
                                 DMemRE.set(1)
                             else:
@@ -101,15 +102,15 @@ class Controller(Cell):
                                 )
                                 DMemRE.set(1)
 
-                        elif src == OP.IM:
+                        elif src == MOVOP.IM:
                             RegMuxSel.set( REGMUXSEL.IMMEDIATE )
-                    elif dst in (OP.REG2MEM,OP.IM2MEM):
-                        if src == OP.REGA: DMemDinMuxSel.set(DMEMDINMUXSEL.REGA)
-                        elif src == OP.REGB: DMemDinMuxSel.set(DMEMDINMUXSEL.REGB)
-                        elif src == OP.REGC: DMemDinMuxSel.set(DMEMDINMUXSEL.REGC)
-                        elif src == OP.REGD: DMemDinMuxSel.set(DMEMDINMUXSEL.REGD)
-                        elif src == OP.IM: DMemDinMuxSel.set(DMEMDINMUXSEL.IMMEDIATE)
-                        if dst == OP.REG2MEM:
+                    elif dst in (MOVOP.REG2MEM,MOVOP.IM2MEM):
+                        if src == MOVOP.A: DMemDinMuxSel.set(DMEMDINMUXSEL.REGA)
+                        elif src == MOVOP.B: DMemDinMuxSel.set(DMEMDINMUXSEL.REGB)
+                        elif src == MOVOP.C: DMemDinMuxSel.set(DMEMDINMUXSEL.REGC)
+                        elif src == MOVOP.D: DMemDinMuxSel.set(DMEMDINMUXSEL.REGD)
+                        elif src == MOVOP.IM: DMemDinMuxSel.set(DMEMDINMUXSEL.IMMEDIATE)
+                        if dst == MOVOP.REG2MEM:
                             DMemAddrMuxSel.set(
                                 (DMEMADDRMUXSEL.REGA,
                                 DMEMADDRMUXSEL.REGB,
@@ -122,11 +123,11 @@ class Controller(Cell):
                         else:
                             DMemAddrMuxSel.set( DMEMADDRMUXSEL.IMMEDIATE )
                 elif sigStateQ.get() == STATE.EXECUTE:
-                    if dst == OP.REGA: AWE.set(1)
-                    elif dst == OP.REGB: BWE.set(1)
-                    elif dst == OP.REGC: CWE.set(1)
-                    elif dst == OP.REGD: DWE.set(1)
-                    elif dst in (OP.REG2MEM,OP.IM2MEM):
+                    if dst == MOVOP.A: AWE.set(1)
+                    elif dst == MOVOP.B: BWE.set(1)
+                    elif dst == MOVOP.C: CWE.set(1)
+                    elif dst == MOVOP.D: DWE.set(1)
+                    elif dst in (MOVOP.REG2MEM,MOVOP.IM2MEM):
                         DMemWE.set(1)
 
 
@@ -141,7 +142,7 @@ if __name__ == "__main__":
     from logisim import simulateTimeUnit,writeVCD
     clk = Net()
     OSCILLATOR(100,clk)
-    controller = Controller(
+    controller = ControlUnit(
         Vector(16), clk, Net(), Vector(3), Vector(3), Net(), Net(), Vector(16), Vector(3), Net(), Net(), Net(), Net()
     )
 
