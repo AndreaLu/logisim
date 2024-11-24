@@ -142,7 +142,8 @@ class ControlUnit(Cell):
                     elif dst == MOVOP.D: DWE.set(1)
                     elif dst in (MOVOP.REG2MEM,MOVOP.IM2MEM):
                         DMemWE.set(1)
-            elif opcode == OPCODE.ADD:
+            elif opcode in (OPCODE.ADD,OPCODE.SUB):
+                ALUCntrl.opType.set( (OPCODE.ADD,OPCODE.SUB).index(opcode))
                 op = (instruction >> 8) & 0b111
                 if op == ADDOP.A: ALUMuxA.set(DMEMADDRMUXSEL.REGA)
                 elif op == ADDOP.B: ALUMuxA.set(DMEMADDRMUXSEL.REGB)
@@ -155,6 +156,7 @@ class ControlUnit(Cell):
                 elif op == ADDOP.B: ALUMuxB.set(DMEMADDRMUXSEL.REGB)
                 elif op == ADDOP.C: ALUMuxB.set(DMEMADDRMUXSEL.REGC)
                 elif op == ADDOP.D: ALUMuxB.set(DMEMADDRMUXSEL.REGD)
+                elif op == ADDOP.IMMEDIATE: ALUMuxB.set(DMEMADDRMUXSEL.IMMEDIATE)
                 else: raise Exception(f"invalid second operand value {hex(op)} in ADD instruction {hex(instruction)}")
 
 

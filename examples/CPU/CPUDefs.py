@@ -40,18 +40,19 @@ from logisim import Net,Vector,Cell
 # the 16 bit Immediate in the instruction.
 # An instruction cannot access to memory both for SRC and DST.
 
-#     ADD  |    A     |    B    |   IM    | REGDST
-#    [0:7] | [8:10]   | [11:13] | [14:29] | [30:31]
-#   -------|----------|---------|---------|---------
-#    0x02  | A  = 000 | A = 000 |         | A = 00
-#          | B  = 001 | B = 001 |         | B = 01
-#          | C  = 010 | C = 010 |         | C = 10
-#          | D  = 011 | D = 011 |         | D = 11
-#          | IM = 100 |         |         |
+#     ADD  |    A     |    B     |   IM    | REGDST
+#    [0:7] | [8:10]   | [11:13]  | [14:29] | [30:31]
+#   -------|----------|----------|---------|---------
+#    0x02  | A  = 000 | A  = 000 |         | A = 00
+#          | B  = 001 | B  = 001 |         | B = 01
+#          | C  = 010 | C  = 010 |         | C = 10
+#          | D  = 011 | D  = 011 |         | D = 11
+#          | IM = 100 | IM = 100 |         |
 #  
 # Adds two words and store the result to a register.
-# operaend A can be a register or the instruction immediate.
-# operand B must be a register.
+# operands can be either a register or an immediate.
+# Note: both operand refer to the same immediate
+# so for example `add $a 100` is the same as `mov $a 200`
 
 #     JMP  |   CND     |  OP      |   IM    |
 #    [0:7] |  [8:10]   | [11:13]  | [14:29] | [30:31]
