@@ -10,29 +10,31 @@ from CPUDefs import *
 
 class ControlUnit(Cell):
     def __init__(self,
-        # Inputs
-        Instruction : Vector,
-        Clock : Net,
-        AQ : Vector,
-        BQ : Vector,
-        CQ : Vector,
-        DQ : Vector,
-        # Outputs
-        IMemRE : Net,
-        IMemAddr : Vector,
-        DMemAddrMuxSel : Vector,
-        DMemDinMuxSel : Vector,
-        DMemRE : Net,
-        DMemWE : Net,
-        Immediate : Vector,
-        RegMuxSel : Vector,
-        AWE : Net,
-        BWE : Net,
-        CWE : Net,
-        DWE : Net,
-        ALUCntrl : ALUControl,
-        ALUMuxA : Vector,
-        ALUMuxB : Vector
+            # Inputs
+            Instruction : Vector,
+            Clock : Net,
+            AQ : Vector,
+            BQ : Vector,
+            CQ : Vector,
+            DQ : Vector,
+            Status : ALUStatus,
+            # Outputs
+            IMemRE : Net,
+            IMemAddr : Vector,
+            DMemAddrMuxSel : Vector,
+            DMemDinMuxSel : Vector,
+            DMemRE : Net,
+            DMemWE : Net,
+            Immediate : Vector,
+            RegMuxSel : Vector,
+            AWE : Net,
+            BWE : Net,
+            CWE : Net,
+            DWE : Net,
+            ALUCntrl : ALUControl,
+            ALUMuxA : Vector,
+            ALUMuxB : Vector,
+            State : Net
         ):
 
         sigStateQ = Vector(StateSize)
@@ -50,6 +52,7 @@ class ControlUnit(Cell):
         ADDER(A=cOneS,B=sigStateQ,Out=(sigStateInt := Vector(StateSize)))
         MUX(Inputs=(sigStateInt,cFetch),Output=sigStateD,Sel=sigStateIsExecute)
         REG(D=sigStateD,clock=Clock,Q=sigStateQ)
+        BUFF(inputs=(sigStateQ.nets[0],),output=State)
 
         # Program Counter
         (cOne16 := Vector(16)).set(1)
@@ -57,6 +60,7 @@ class ControlUnit(Cell):
         self.sigPCQ = sigPCQ
         ADDER(A=sigPCQ,B=cOne16,Out=(sigPCDDef:=Vector(16)))
         MUX(Inputs=(sigPCDDef,AQ,BQ,CQ,DQ,Immediate),Output=sigPCD,Sel=(sigPCDSel:=Vector(3)))
+        self.sigPCDSel = sigPCDSel
         WEREG(D=sigPCD,Q=sigPCQ,WE=(sigPCWE := Net()),CLK=Clock,Qinit=0xFFFF)
 
         # Instruction memory
@@ -78,6 +82,7 @@ class ControlUnit(Cell):
                 DMemWE.set(0)
                 sigPCWE.set(1)
                 sigPCDSel.set(PCDSEL.DEF)
+                ALUCntrl.enable.set(0)
             else:
                 DMemRE.set(0)
                 sigPCWE.set(0)
@@ -142,25 +147,29 @@ class ControlUnit(Cell):
                     elif dst == MOVOP.D: DWE.set(1)
                     elif dst in (MOVOP.REG2MEM,MOVOP.IM2MEM):
                         DMemWE.set(1)
-            elif opcode in (OPCODE.ADD,OPCODE.SUB):
-                ALUCntrl.opType.set( (OPCODE.ADD,OPCODE.SUB).index(opcode))
+            elif opcode in (OPCODE.ADD,OPCODE.SUB,OPCODE.CMP):
+                if opcode in (OPCODE.SUB,OPCODE.CMP):
+                    ALUCntrl.opType.set( ALUOpType.SUB )
+                else:
+                    ALUCntrl.opType.set( ALUOpType.ADD )
+                ALUCntrl.enable.set(1)
                 op = (instruction >> 8) & 0b111
                 if op == ADDOP.A: ALUMuxA.set(DMEMADDRMUXSEL.REGA)
                 elif op == ADDOP.B: ALUMuxA.set(DMEMADDRMUXSEL.REGB)
                 elif op == ADDOP.C: ALUMuxA.set(DMEMADDRMUXSEL.REGC)
                 elif op == ADDOP.D: ALUMuxA.set(DMEMADDRMUXSEL.REGD)
-                elif op == ADDOP.IMMEDIATE: ALUMuxA.set(DMEMADDRMUXSEL.IMMEDIATE)
+                elif op == ADDOP.IM: ALUMuxA.set(DMEMADDRMUXSEL.IMMEDIATE)
                 else: raise Exception(f"invalid first operand value {hex(op)} in ADD instruction {hex(instruction)}")
                 op = (instruction >> 11) & 0b111
                 if op == ADDOP.A: ALUMuxB.set(DMEMADDRMUXSEL.REGA)
                 elif op == ADDOP.B: ALUMuxB.set(DMEMADDRMUXSEL.REGB)
                 elif op == ADDOP.C: ALUMuxB.set(DMEMADDRMUXSEL.REGC)
                 elif op == ADDOP.D: ALUMuxB.set(DMEMADDRMUXSEL.REGD)
-                elif op == ADDOP.IMMEDIATE: ALUMuxB.set(DMEMADDRMUXSEL.IMMEDIATE)
+                elif op == ADDOP.IM: ALUMuxB.set(DMEMADDRMUXSEL.IMMEDIATE)
                 else: raise Exception(f"invalid second operand value {hex(op)} in ADD instruction {hex(instruction)}")
 
 
-                if sigStateQ.get() == STATE.EXECUTE:
+                if sigStateQ.get() == STATE.EXECUTE and opcode != OPCODE.CMP:
                     RegMuxSel.set( REGMUXSEL.ALU )
                     dst = (instruction >> 30) & 0b11
                     if dst == MOVOP.A: AWE.set(1)
@@ -171,7 +180,9 @@ class ControlUnit(Cell):
                 cnd = (instruction >> 8) & 0b111
                 src = (instruction >> 11) & 0b111
                 if sigStateQ.get() == STATE.FETCH:
-                    if cnd == JMPCND.UNC:
+                    if (cnd == JMPCND.UNC) or \
+                       (cnd == JMPCND.EQ and Status.Z.get() == 1) or \
+                       (cnd == JMPCND.NEQ and Status.Z.get() == 0):
                         if   src == JMPOP.A: sigPCDSel.set(PCDSEL.A)
                         elif src == JMPOP.B: sigPCDSel.set(PCDSEL.B)
                         elif src == JMPOP.C: sigPCDSel.set(PCDSEL.C)

@@ -97,7 +97,7 @@ class ADDOP(int,Enum):
     B = auto()
     C = auto()
     D = auto()
-    IMMEDIATE = auto()
+    IM = auto()
 
 class JMPCND(AutoEnum):
     UNC = auto() # Unconditionate jump
@@ -185,7 +185,18 @@ class ALUOpType(int,Enum):
     MAX = auto()
 
 
-class ALUControl(Cell):
+class ALUControl:
     opType : Vector
+    enable : Net
     def __init__(self):
-        self.opType =  Vector(ceil(log2(ALUOpType.MAX-1)))
+        self.opType = Vector(ceil(log2(ALUOpType.MAX-1)))
+        self.enable = Net()
+
+class ALUStatus(Cell,Vector):
+    Z : Net
+    C : Net
+    def __init__(self):
+        Vector.__init__(self,2)
+        Cell.__init__(self)
+        self.Z = self.nets[0]
+        self.C = self.nets[1]
