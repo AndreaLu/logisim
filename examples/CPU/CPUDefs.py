@@ -105,7 +105,20 @@ class JMPCND(AutoEnum):
     GRE = auto() # Jump if greater
     LOW = auto() # Jump if lower
 
+class JMPOP(AutoEnum):
+    A = auto()
+    B = auto()
+    C = auto()
+    D = auto()
+    IM = auto()
 
+class PCDSEL(AutoEnum):
+    DEF = auto()
+    A   = auto()
+    B   = auto()
+    C   = auto()
+    D   = auto()
+    IM  = auto()
 
 class OPCODE(int,Enum):
     def _generate_next_value_(name, start, count, last_values):

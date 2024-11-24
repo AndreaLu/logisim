@@ -56,16 +56,10 @@ dmem.ram[112] = 37
 # Instruction Memory
 sigIMemDout = Vector(32)
 imem = RAM(size=65536,address=sigIMemAddr,clock=clk,we=GND,re=sigIMemRE,dataIn=cZero32,dataOut=sigIMemDout)
-imem.ram[0] = OPCODE.NOP                                                                                     # nop
-#imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)      | (MOVOP.IM << 11)       | (112 << 14)     | 0                # mov $a 112
-#imem.ram[2] = OPCODE.MOV | (MOVOP.B << 8)      | (MOVOP.A << 11)        | 0               | 0                # mov $b $a
-#imem.ram[3] = OPCODE.MOV | (MOVOP.C << 8)      | (MOVOP.IM2MEM << 11)   | (82 << 14)      | 0                # mov $c #82
-#imem.ram[4] = OPCODE.MOV | (MOVOP.D << 8)      | (MOVOP.REG2MEM << 11)  | 0               | (MOVOP.C << 30)  # mov $d #c 
-#imem.ram[5] = OPCODE.MOV | (MOVOP.IM2MEM << 8) | (MOVOP.A)              | (32 << 14)      | 0                # mov #32 $A
-
-
-imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)      | (MOVOP.IM << 11)        | (1588 << 14)    | 0                # mov $a 1588
-imem.ram[2] = OPCODE.ADD | (ADDOP.A << 8)      | (ADDOP.IMMEDIATE << 11) | (250 << 14)     | (MOVOP.A << 30)  # add A 250 A
+imem.ram[0] = OPCODE.NOP | 0                      | 0                | 0               | 0                # nop
+imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)         | (MOVOP.IM << 11) | (1588 << 14)    | 0                # mov $a 1588
+imem.ram[2] = OPCODE.ADD | (ADDOP.IMMEDIATE << 8) | (ADDOP.A << 11)  | (250 << 14)     | (MOVOP.A << 30)  # add A 250 A
+imem.ram[3] = OPCODE.JMP | (JMPCND.UNC << 8)      | (JMPOP.IM << 11) | (2 << 14)       | 0                # jmp 2
 
 
 # Controller
@@ -73,6 +67,7 @@ controller = ControlUnit(
     # Instruction Memory
     Instruction=sigIMemDout,
     Clock=clk,
+    AQ=sigAQ,BQ=sigBQ,CQ=sigCQ,DQ=sigDQ,
     IMemRE=sigIMemRE,
     IMemAddr=sigIMemAddr,
     # Data Memory
