@@ -12,7 +12,7 @@ from logisim import simulateTimeUnit,writeVCD
 from CPUDefs import *
 from CU import ControlUnit
 from ALU import ALU
-
+from compiler import compile
 
 
 
@@ -56,13 +56,14 @@ dmem.ram[112] = 37
 # Instruction Memory
 sigIMemDout = Vector(32)
 imem = RAM(size=65536,address=sigIMemAddr,clock=clk,we=GND,re=sigIMemRE,dataIn=cZero32,dataOut=sigIMemDout)
-imem.ram[0] = OPCODE.MOV | (MOVOP.B << 8)         | (MOVOP.IM << 11) | (1 << 14)       | 0                # mov $b 1     
-imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)         | (MOVOP.IM << 11) | (32 << 14)      | 0                # mov $a 32    
-imem.ram[2] = OPCODE.ADD | (ADDOP.A << 8)         | (ADDOP.B << 11)  | 0               | (MOVOP.A << 30)  # add $a $a $b 
-imem.ram[3] = OPCODE.CMP | (ADDOP.A << 8)         | (ADDOP.IM << 11) | (35 << 14)      | 0                # cmp $a 35    
-imem.ram[4] = OPCODE.JMP | (JMPCND.EQ << 8)       | (JMPOP.IM << 11) | (1 << 14)       | 0                # je 1          
-imem.ram[5] = OPCODE.JMP | (JMPCND.NEQ << 8)      | (JMPOP.IM << 11) | (2 << 14)       | 0                # jne 2   
-
+imem.loadBytes( compile( open("program.asm","r").read() ) )
+#imem.ram[0] = OPCODE.MOV | (MOVOP.A << 8)          | (MOVOP.IM << 11)| (18 << 14)      | 0 
+#imem.ram[1] = OPCODE.MOV | (MOVOP.IM2MEM << 8)     | (MOVOP.A << 11) | (1 << 14)       | 0                # mov $b 1     
+#imem.ram[1] = OPCODE.MOV | (MOVOP.A << 8)         | (MOVOP.IM << 11) | (32 << 14)      | 0                # mov $a 32    
+#imem.ram[2] = OPCODE.ADD | (ADDOP.A << 8)         | (ADDOP.B << 11)  | 0               | (MOVOP.A << 30)  # add $a $a $b 
+#imem.ram[3] = OPCODE.CMP | (ADDOP.A << 8)         | (ADDOP.IM << 11) | (35 << 14)      | 0                # cmp $a 35    
+#imem.ram[4] = OPCODE.JMP | (JMPCND.EQ << 8)       | (JMPOP.IM << 11) | (1 << 14)       | 0                # je 1          
+#imem.ram[5] = OPCODE.JMP | (JMPCND.NEQ << 8)      | (JMPOP.IM << 11) | (2 << 14)       | 0                # jne 2   
 
 # Controller
 controller = ControlUnit(

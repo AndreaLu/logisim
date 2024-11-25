@@ -23,6 +23,7 @@ from logisim import Net,Vector,Cell
 #
 # No operation
 
+
 #     MOV  |   DST    |   SRC    |   IM    | REGDST
 #    [0:7] |  [8:10]  | [11:13]  | [14:29] | [30:31]
 #   -------|----------|----------|---------|---------
@@ -30,13 +31,13 @@ from logisim import Net,Vector,Cell
 #          | B  = 001 | B  = 001 |         | B = 01
 #          | C  = 010 | C  = 010 |         | C = 10
 #          | D  = 011 | D  = 011 |         | D = 11
-#          | pR = 100 | pR = 100 |         |
-#          | pI = 101 | pI = 101 |         |
+#          | #R = 100 | #R = 100 |         |
+#          | #I = 101 | #I = 101 |         |
 #          |          | IM = 110 |         |
 #
 # Moves a word from SRC to DST.
-# pR means an access to memory at the location specified by
-# REGDST. pI means an access to memory at the location specified by
+# #R means an access to memory at the location specified by
+# REGDST. #I means an access to memory at the location specified by
 # the 16 bit Immediate in the instruction.
 # An instruction cannot access to memory both for SRC and DST.
 

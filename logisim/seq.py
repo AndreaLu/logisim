@@ -138,7 +138,18 @@ class RAM(Gate):
         )
         if self.clock.value[-2] == 1 and self.clock.value[-3] == 0 and self.we.value[-2] == 1:
             self.ram[self.address.get()] = self.dataIn.get()
-
+    
+    def loadFile(self,fname:str):
+        self.loadBytes( open(fname,"rb").read() )
+    
+    def loadBytes(self,data:bytes):
+        data = list(data)
+        i = 0
+        j = 0
+        while( len(data)-j >= 4 ):
+            self.ram[i] = int(data[j]) + (int(data[j+1]) << 8) + (int(data[j+2]) << 16) + (int(data[j+3]) << 24)
+            j += 4
+            i += 1
 
 def pulse(t,min,max):
     return 1 if t >= min and t <= max else 0
