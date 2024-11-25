@@ -4,12 +4,64 @@
 import re
 from CPUDefs import *
 
+msgErrorHeader = ""
+# this variable is updated for each line analyzed by the compile routine
+# and is set to a useful error message string with the line number and 
+# contents for reference.
+def error(msg):
+    raise Exception(f"{msgErrorHeader}{msg}")
 
+class ASM_TOKEN(AutoEnum):
+    REG = auto()
+    IM = auto() # IMMEDIATE
+    RP = auto() # register pointet
+    IP = auto() # immediate pointer
+
+class asmToken(str):
+    def parse(self):
+        if re.fullmatch("\\$[a-d]",str(self.lower())):
+            return (ASM_TOKEN.REG,self.lower()[1])
+        elif re.fullmatch("#[a-d]",self.lower()):
+            return (ASM_TOKEN.RP,str(self.lower()[1]))
+        elif re.fullmatch("[0-9]+",self):
+            immediate = int(str(self))
+            if immediate >= 2**16:
+                error(f"Invalid immediate {immediate} does not fit 16bits")
+            return (ASM_TOKEN.IM, immediate)
+        elif re.fullmatch("#[0-9]+",self):
+            immediate = int(str(self)[1:])
+            if immediate >= 2**16:
+                error(f"Invalid immediate {immediate} does not fit 16bits")
+            return (ASM_TOKEN.IP,immediate)
+        error(f"Invalid token '{str(self)}'")
+
+
+
+class Line:
+    fields : list[str]
+    originalLineNo : int
+    label : str
+    address : int
+    originalLine : str
+    
+    def __init__(self):
+        self.label = ""
+        self.address = 0
+
+    def isLabel(self):
+        return  len(self.fields) == 1 and \
+            re.fullmatch("[A-Z_][A-Z0-9_]+:",self.fields[0])
+    
 
 def compile(srcCode:str) -> bytes:
+    global msgErrorHeader
 
-    lineNo = 0
+    labels = []
+
+
     out = []
+    currInstructionNo = 0
+
     def parseMOV(args : list[str]) -> bytes:
         args = args[1:]
         immediate = None
@@ -82,54 +134,144 @@ def compile(srcCode:str) -> bytes:
             instruction += immediate << 14
 
         instruction += REGDST << 30
-        #instruction = OPCODE.MOV  |  (MOVOP.IM2MEM << 8) |  (MOVOP.C << 11) | (100 << 14) | (MOVOP.C << 30)
-        return bytes([
-            (instruction) & 0xFF, (instruction >> 8) & 0xFF, (instruction >> 16) & 0xFF, (instruction >> 24) & 0xFF 
-        ])
+        return instruction
     def parseJMP(args : list[str]) -> bytes:
         pass
     def parseALU(args : list[str]) -> bytes:
-        pass
+        if len(args) != 4:
+            error("Instruction malformed")
 
-
-    for line in srcCode.split("\n"):
+        immediate = 0
+        # Parse A ---------------------------------------------------------
+        A = asmToken(args[2]).parse()
+        if A[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
+            error(f"Invalid operand A in ADD: '{args[2]}', " \
+                   "must be either Immediate or Register!")
         
-        # -----------------------------------------------------------------
+        if A[0] == ASM_TOKEN.REG:
+            opa = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(A[1])]
+        else:
+            opa = ADDOP.IM
+            immediate = A[1]
+            
+        # Parse B ---------------------------------------------------------
+        B = asmToken(args[3]).parse()
+        if B[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
+            error(f"Invalid operand B in ADD: '{args[3]}', " \
+                   "must be either Immediate or Register!")
+        if B[0] == ASM_TOKEN.IM and A[0] == ASM_TOKEN.IM:
+            error(f"Both operands in ADD instruction cannot be immediate!")
+        
+        if B[0] == ASM_TOKEN.REG:
+            opb = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(B[1])]
+        else:
+            opb = ADDOP.IM
+            immediate = B[1]
+        # Parse DST -------------------------------------------------------
+        DST = asmToken(args[1]).parse()
+        if DST[0] != ASM_TOKEN.REG:
+            error(f"Invalid DST '{args[1]}' in ADD operation: DST must be a register!")
+        dst = (MOVOP.A,MOVOP.B,MOVOP.C,MOVOP.D)["abcd".index(DST[1])]
+
+        # Generate instruction
+        return OPCODE.ADD | (opa << 8) | (opb << 11) | (immediate << 14) | (dst << 30)
+    
+    def cleanupLine(line:str):
         # Some adaptation
         # remove comments and multiple whitespaces
         # split the string into a string field array
-        originalLine = line
-        lineNo += 1
         if ';' in line: line = line.split(";")[0]
-        line : str = line.replace("\t"," ").replace("\r","").replace("\n","")
+        line = line.replace("\t"," ").replace("\r","").replace("\n","")
         while "  " in line: line = line.replace("  "," ")
         while line.startswith(" "): line = line[1:]
         while line.endswith(" "): line = line[:-1]
-        if len(line) == 0: continue
-        fields = line.split(" ")
-        if len(fields) < 1:
-            continue
-
-        # -----------------------------------------------------------------
-        # Parse the fields to generate the instructions
-        print(f"parsing {fields}")
-        opcode = fields[0].upper()
+        return line
         
-        if opcode == "MOV":
-            instruction = parseMOV(fields)
-        elif opcode in ("JE","JNE","JGR","JLO"):
-            instruction = parseJMP(fields)
-        elif opcode == ("ADD","SUB","CMP"):
-            instruction = parseALU(fields)
-        else:   
-            raise Exception(f"Unrecognized opcode '{opcode}' in line {lineNo}:'{originalLine}'")
 
-        out += instruction
+    
+    # lines : list[fields,originalLineNum,label,address,islabel]
+    # fields are just the components of the instruction line 
+    lines : list[ Line ]  = []
+    # map labelName -> instruction address
+    labels : map[ int ] = {} 
+
+    # ---------------------------------------------------------------------
+    # STEP 1: cleanup the source code and populate lines
+    lineNo = 0
+    for line in srcCode.split("\n"):
+        lineNo += 1
+        cleanLine = cleanupLine(line)
+        if len(cleanLine) == 0: continue
+        fields = [l.upper() for l in cleanLine.split(" ")]
+        if len(fields) == 0: continue
+        newLine = Line()
+        newLine.fields = fields
+        newLine.originalLineNo = lineNo
+        newLine.originalLine = line
+        lines.append( newLine )
+    
+    # always add a final NOP
+    newLine = Line()
+    newLine.fields = ["NOP"]
+    lines.append( newLine )
+
+    # ---------------------------------------------------------------------
+    # STEP 2: configure label and address of all the code lines
+    # (a code line next a label inherits the label)
+    # and remove the label lines from the listing
+    i = -1
+    while i < len(lines)-1:
+        i += 1
+        l : Line = lines[i]
+        # check if this line is a label
+        if l.isLabel():
+            if lines[i+1].isLabel():
+                raise Exception(f"Cannot have two subsequent labels (line {l.originalLineNo})")
+            # set next instruction label and address
+            label = l.fields[0][:-1]
+            if label in labels:
+                raise Exception(f"Label '{label}' already defined (line {l.originalLineNo})")
+            lines[i+1].label = label # TODO: this parameter could be removed
+            lines[i+1].address = 0 if i == 0 else lines[i-1].address + 1
+            lines = lines[:i] + lines[i+1:]
+            labels[label] = lines[i+1].address
+            i -= 1
+            continue
+        else:
+            # this line is not a label, just set the address
+            if i == 0: l.address = 0
+            else: l.address = lines[i-1].address + 1
+
+    
+    # Remove the last line (NOP)
+    lines = lines[:-1]
+
+    # ---------------------------------------------------------------------
+    # STEP 3: actually parse the instructions
+    for line in lines:
+        msgErrorHeader = f"Error at line number {line.originalLineNo},"\
+            f"'{line.originalLine}':\n"
+
+        opcode = line.fields[0]
+        if opcode == "MOV":
+            instruction = parseMOV(line.fields)
+        elif opcode in ("JE","JNE","JGR","JLO"):
+            # Jumps need to be analyzed at the
+            instruction = parseJMP(line.fields)
+        elif opcode in ("ADD","SUB","CMP"):
+            instruction = parseALU(line.fields)
+        else:   
+            error(f"Unrecognized opcode '{opcode}'")
+
+        out += bytes([
+            (instruction) & 0xFF, (instruction >> 8) & 0xFF, (instruction >> 16) & 0xFF, (instruction >> 24) & 0xFF 
+        ])
         
     return bytes(out)
 
 if __name__ == "__main__":
     import sys, os
+    a = asmToken("$c").parse()
 
     # Input argument checks
     if len( sys.argv ) < 3:
