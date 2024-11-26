@@ -1,6 +1,9 @@
 ; Test program
-mov $a 1637 ; set a to 1637d
-mov $c 1339 ; set c to 1339d
-mov $b 84   ; set b to 84d
-mov #b $a   ; move a to ram[b]
-mov #100 $c ; move c (1339) to ram[100d]
+mov $a 0        ; setta il registro A a 0
+
+LOOP:
+add $a 10 $a    ; incrementa A di 10
+cmp $a 40       ; compare tra A e 40
+jne LOOP        ; se A != 40 torna a LOOP
+
+mov #32 $a      ; sposta a in ram all'indirizzo 32
