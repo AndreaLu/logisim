@@ -14,11 +14,13 @@ def error(msg):
 class ASM_TOKEN(AutoEnum):
     REG = auto()
     IM = auto() # IMMEDIATE
-    RP = auto() # register pointet
+    RP = auto() # register pointer
     IP = auto() # immediate pointer
+    LBL = auto() # label
 
 class asmToken(str):
     def parse(self):
+        global labels
         if re.fullmatch("\\$[a-d]",str(self.lower())):
             return (ASM_TOKEN.REG,self.lower()[1])
         elif re.fullmatch("#[a-d]",self.lower()):
@@ -33,10 +35,12 @@ class asmToken(str):
             if immediate >= 2**16:
                 error(f"Invalid immediate {immediate} does not fit 16bits")
             return (ASM_TOKEN.IP,immediate)
+        elif str(self) in labels:
+            return (ASM_TOKEN.LBL,labels[str(self)])
         error(f"Invalid token '{str(self)}'")
 
 
-
+labels = {} 
 class Line:
     fields : list[str]
     originalLineNo : int
@@ -54,10 +58,7 @@ class Line:
     
 
 def compile(srcCode:str) -> bytes:
-    global msgErrorHeader
-
-    labels = []
-
+    global msgErrorHeader, labels
 
     out = []
     currInstructionNo = 0
@@ -136,46 +137,76 @@ def compile(srcCode:str) -> bytes:
         instruction += REGDST << 30
         return instruction
     def parseJMP(args : list[str]) -> bytes:
-        pass
-    def parseALU(args : list[str]) -> bytes:
-        if len(args) != 4:
+        # All jump instructions have only one argument
+        if len(args) != 2:
             error("Instruction malformed")
 
-        immediate = 0
-        # Parse A ---------------------------------------------------------
-        A = asmToken(args[2]).parse()
-        if A[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
-            error(f"Invalid operand A in ADD: '{args[2]}', " \
-                   "must be either Immediate or Register!")
-        
-        if A[0] == ASM_TOKEN.REG:
-            opa = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(A[1])]
-        else:
-            opa = ADDOP.IM
-            immediate = A[1]
-            
-        # Parse B ---------------------------------------------------------
-        B = asmToken(args[3]).parse()
-        if B[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
-            error(f"Invalid operand B in ADD: '{args[3]}', " \
-                   "must be either Immediate or Register!")
-        if B[0] == ASM_TOKEN.IM and A[0] == ASM_TOKEN.IM:
-            error(f"Both operands in ADD instruction cannot be immediate!")
-        
-        if B[0] == ASM_TOKEN.REG:
-            opb = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(B[1])]
-        else:
-            opb = ADDOP.IM
-            immediate = B[1]
-        # Parse DST -------------------------------------------------------
-        DST = asmToken(args[1]).parse()
-        if DST[0] != ASM_TOKEN.REG:
-            error(f"Invalid DST '{args[1]}' in ADD operation: DST must be a register!")
-        dst = (MOVOP.A,MOVOP.B,MOVOP.C,MOVOP.D)["abcd".index(DST[1])]
+        opcode = args[0]
+        map = {"JMP":JMPCND.UNC,"JEQ":JMPCND.EQ,
+        "JNE":JMPCND.NEQ,"JLW":JMPCND.LOW,
+        "JGR":JMPCND.GRE,"JLE":JMPCND.LEQ,"JGE":JMPCND.GEQ}
+        if opcode not in map:
+            error(f"invalid opcode {opcode}")
 
-        # Generate instruction
-        return OPCODE.ADD | (opa << 8) | (opb << 11) | (immediate << 14) | (dst << 30)
-    
+        label = asmToken(args[1]).parse()
+        if label[0] not in (ASM_TOKEN.LBL,ASM_TOKEN.IM,ASM_TOKEN.REG):
+            error(f"Jump operand must be a label, register or immediate")
+        if label[0] in (ASM_TOKEN.LBL,ASM_TOKEN.IM):
+            immediate = label[1]
+            reg = 4
+        else:
+            immediate = 0
+            reg = {"a":0,"b":1,"c":2,"d":3}[label[1]]
+
+        
+        return OPCODE.JMP | (map[opcode] << 8) | (reg << 11) | (immediate << 14)
+    def parseALU(args : list[str]) -> bytes:
+        immediate = 0
+
+        if args[0] in ("ADD","SUB","MUL","DIV","CMP"):
+            opcode = {
+                "ADD":OPCODE.ADD,
+                "SUB":OPCODE.SUB,
+                "MUL":OPCODE.MUL,
+                "DIV":OPCODE.DIV,
+                "CMP":OPCODE.CMP
+            }[args[0]]
+            # Parse A -----------------------------------------------------
+            A = asmToken(args[1]).parse()
+            if A[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
+                error(f"Invalid operand A in ADD: '{args[1]}', " \
+                    "must be either Immediate or Register!")
+        
+            if A[0] == ASM_TOKEN.REG:
+                opa = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(A[1])]
+            else:
+                opa = ADDOP.IM
+                immediate = A[1]
+            
+            # Parse B ---------------------------------------------------------
+            B = asmToken(args[2]).parse()
+            if B[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
+                error(f"Invalid operand B in ADD: '{args[2]}', " \
+                    "must be either Immediate or Register!")
+            if B[0] == ASM_TOKEN.IM and A[0] == ASM_TOKEN.IM:
+                error(f"Both operands in ADD instruction cannot be immediate!")
+            
+            if B[0] == ASM_TOKEN.REG:
+                opb = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(B[1])]
+            else:
+                opb = ADDOP.IM
+                immediate = B[1]
+            if opcode != OPCODE.CMP:
+                # Parse DST -----------------------------------------------
+                DST = asmToken(args[3]).parse()
+                if DST[0] != ASM_TOKEN.REG:
+                    error(f"Invalid DST '{args[3]}' in ADD operation: DST must be a register!")
+                dst = (MOVOP.A,MOVOP.B,MOVOP.C,MOVOP.D)["abcd".index(DST[1])]
+
+                # Generate instruction
+                return opcode | (opa << 8) | (opb << 11) | (immediate << 14) | (dst << 30)
+            else:
+                return opcode | (opa << 8) | (opb << 11)
     def cleanupLine(line:str):
         # Some adaptation
         # remove comments and multiple whitespaces
@@ -193,7 +224,7 @@ def compile(srcCode:str) -> bytes:
     # fields are just the components of the instruction line 
     lines : list[ Line ]  = []
     # map labelName -> instruction address
-    labels : map[ int ] = {} 
+    
 
     # ---------------------------------------------------------------------
     # STEP 1: cleanup the source code and populate lines
@@ -233,8 +264,9 @@ def compile(srcCode:str) -> bytes:
                 raise Exception(f"Label '{label}' already defined (line {l.originalLineNo})")
             lines[i+1].label = label # TODO: this parameter could be removed
             lines[i+1].address = 0 if i == 0 else lines[i-1].address + 1
+            add = lines[i+1].address
             lines = lines[:i] + lines[i+1:]
-            labels[label] = lines[i+1].address
+            labels[label] = add
             i -= 1
             continue
         else:
@@ -255,10 +287,10 @@ def compile(srcCode:str) -> bytes:
         opcode = line.fields[0]
         if opcode == "MOV":
             instruction = parseMOV(line.fields)
-        elif opcode in ("JE","JNE","JGR","JLO"):
+        elif opcode[0] == "J":
             # Jumps need to be analyzed at the
             instruction = parseJMP(line.fields)
-        elif opcode in ("ADD","SUB","CMP"):
+        elif opcode in ("ADD","SUB","MUL","DIV","CMP"):
             instruction = parseALU(line.fields)
         else:   
             error(f"Unrecognized opcode '{opcode}'")
@@ -266,7 +298,6 @@ def compile(srcCode:str) -> bytes:
         out += bytes([
             (instruction) & 0xFF, (instruction >> 8) & 0xFF, (instruction >> 16) & 0xFF, (instruction >> 24) & 0xFF 
         ])
-        
     return bytes(out)
 
 if __name__ == "__main__":
@@ -288,5 +319,6 @@ if __name__ == "__main__":
         exit(1)
 
     # Compile the source code
-    open(outFname,"wb").write( compile( open(srcFname,"r").read() ) )
+    data = compile( open(srcFname,"r").read() )
+    open(outFname,"wb").write( data )
     
