@@ -54,15 +54,30 @@ from logisim import Net,Vector,Cell
 # operands can be either a register or an immediate.
 # Note: both operand refer to the same immediate
 # so for example `add $a 100` is the same as `mov $a 200`
+# SUB, MUL and DIV share the same fields.
+
+#     CMP  |    A     |    B     |   IM    | REGDST
+#    [0:7] | [8:10]   | [11:13]  | [14:29] | [30:31]
+#   -------|----------|----------|---------|---------
+#    0x02  | A  = 000 | A  = 000 |         | 
+#          | B  = 001 | B  = 001 |         | 
+#          | C  = 010 | C  = 010 |         | 
+#          | D  = 011 | D  = 011 |         | 
+#          | IM = 100 | IM = 100 |         |
+#
+# Simulates the subtraction A-B, but only updates the status register
+# Useful to generate jump conditions without affecting the registers.
 
 #     JMP  |   CND     |  OP      |   IM    |
 #    [0:7] |  [8:10]   | [11:13]  | [14:29] | [30:31]
 #   -------|-----------|----------|---------|---------
-#    0x03  | UNC = 000 | A  = 000 |         | 0b00
+#    0x03  | UNC = 000 | A  = 000 | address | 0b00
 #          | EQ  = 001 | B  = 001 |         |
 #          | NEQ = 010 | C  = 010 |         |
 #          | GRE = 011 | D  = 011 |         |
 #          | LOW = 100 | IM = 100 |         |
+#          | GEQ = 101 |          |         |
+#          | LEQ = 110 |          |         |
 #          
 # Branches to a new instruction memory address; a condition can be applied
 # by using the CND field. Conditions are referred to the status registers
@@ -106,6 +121,8 @@ class JMPCND(AutoEnum):
     NEQ = auto() # Jump if not equal
     GRE = auto() # Jump if greater
     LOW = auto() # Jump if lower
+    GEQ = auto() # Greater or equal
+    LEQ = auto() # Lower or equal
 
 class JMPOP(AutoEnum):
     A = auto()
@@ -135,6 +152,8 @@ class OPCODE(int,Enum):
     ROTL  = auto() # ROTL - Rotate lef a register
     ROTR  = auto() # ROTR - Rotate right a register
     CMP   = auto() # CMP  - Compare (performs a sub without a destination)
+    MUL   = auto()
+    DIV   = auto()
     
 
 
