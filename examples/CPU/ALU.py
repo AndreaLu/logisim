@@ -66,12 +66,19 @@ class BWMultiplier:
                 so = [Net() for i in range(wordLen)]
                 co = [Net() for i in range(wordLen)]
 
-        (carry := Net()).set(1)
         for i in range(wordLen):
-           FullAdder(A=carry,B=co[i],Cin= so[i] if i < wordLen-1 else VDD,S=C.nets[wordLen+i],Cout=(cint:=Net()))
-           carry = cint
+            FullAdder(
+                A=VDD if i == 0 else carry,
+                B=co[i],
+                Cin= so[i] if i < wordLen-1 else VDD,
+                S=C.nets[wordLen+i],
+                Cout=(carry:=Net())
+            )
         
-
+        # Overflow is 1 when wordLen+1 most significant bits are not all the same
+        AND(C.nets[wordLen-1:],(sigAllOnes:=Net()))
+        NOR(C.nets[wordLen-1:],(sigAllZeros:=Net()))
+        NOR((sigAllZeros,sigAllOnes),Overflow)
 
 class ALUCU:
     def __init__(self, ctrl: ALUControl, adderMuxSel:Vector):
@@ -110,8 +117,8 @@ if __name__ == "__main__":
     from logisim import simulateTimeUnit, writeVCD
 
     A,B,C,Overflow = Vector(16),Vector(16),Vector(32),Net()
-    A.set(4320)
-    B.set(321)
+    A.set(1057)
+    B.set(31)
     clk = Net()
 
     OSCILLATOR(10,clk)
