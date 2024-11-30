@@ -152,6 +152,7 @@ class ControlUnit(Cell):
                     ALUCntrl.opType.set( ALUOpType.SUB )
                 else:
                     ALUCntrl.opType.set( ALUOpType.ADD )
+                
                 ALUCntrl.enable.set(1)
                 op = (instruction >> 8) & 0b111
                 if op == ADDOP.A: ALUMuxA.set(DMEMADDRMUXSEL.REGA)
@@ -159,14 +160,12 @@ class ControlUnit(Cell):
                 elif op == ADDOP.C: ALUMuxA.set(DMEMADDRMUXSEL.REGC)
                 elif op == ADDOP.D: ALUMuxA.set(DMEMADDRMUXSEL.REGD)
                 elif op == ADDOP.IM: ALUMuxA.set(DMEMADDRMUXSEL.IMMEDIATE)
-                else: raise Exception(f"invalid first operand value {hex(op)} in ADD instruction {hex(instruction)}")
                 op = (instruction >> 11) & 0b111
                 if op == ADDOP.A: ALUMuxB.set(DMEMADDRMUXSEL.REGA)
                 elif op == ADDOP.B: ALUMuxB.set(DMEMADDRMUXSEL.REGB)
                 elif op == ADDOP.C: ALUMuxB.set(DMEMADDRMUXSEL.REGC)
                 elif op == ADDOP.D: ALUMuxB.set(DMEMADDRMUXSEL.REGD)
                 elif op == ADDOP.IM: ALUMuxB.set(DMEMADDRMUXSEL.IMMEDIATE)
-                else: raise Exception(f"invalid second operand value {hex(op)} in ADD instruction {hex(instruction)}")
 
 
                 if sigStateQ.get() == STATE.EXECUTE and opcode != OPCODE.CMP:

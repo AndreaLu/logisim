@@ -206,15 +206,21 @@ class ALUOpType(int,Enum):
 
 
 class ALUControl:
+    """This is the control input signals of the ALU"""
     opType : Vector
-    enable : Net
+    """Type of operation that needs to be carried out"""
+    enable : Net  
+    """enables the ALU"""
+    
     def __init__(self):
         self.opType = Vector(ceil(log2(ALUOpType.MAX-1)))
         self.enable = Net()
 
 class ALUStatus(Cell,Vector):
     Z : Net
+    """Gets asserted high when the result of an operation equals zero"""
     C : Net
+    """Carry flag. Is asserted high when an operation generates a carry"""
     def __init__(self):
         Vector.__init__(self,2)
         Cell.__init__(self)

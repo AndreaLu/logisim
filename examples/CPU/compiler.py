@@ -206,7 +206,7 @@ def compile(srcCode:str) -> bytes:
                 # Generate instruction
                 return opcode | (opa << 8) | (opb << 11) | (immediate << 14) | (dst << 30)
             else:
-                return opcode | (opa << 8) | (opb << 11)
+                return opcode | (opa << 8) | (opb << 11) | (immediate << 14)
     def cleanupLine(line:str):
         # Some adaptation
         # remove comments and multiple whitespaces

@@ -35,7 +35,7 @@ class ALUCU:
         PROCESS(p)
 
 class ALU(Cell):
-    def __init__(self, ctrl: ALUControl, A: Vector,B:Vector, Out :Vector, Carry: Net, Overflow:Net, Zero: Net,Clock: Net, Status:ALUStatus, CPUState:Net):
+    def __init__(self, ctrl: ALUControl, A: Vector,B:Vector, Out :Vector, Carry: Net, Overflow:Net,Clock: Net, Status:ALUStatus, CPUState:Net):
         assert (wordLen := A.length) == B.length
     
         # Control Unit

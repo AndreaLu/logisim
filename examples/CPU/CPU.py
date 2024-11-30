@@ -102,7 +102,6 @@ ALU(
     Out=sigALU,
     Carry=Net(),
     Overflow=Net(),
-    Zero=Net(),
     Clock=clk,
     Status=sigStatus,
     CPUState=sigState
