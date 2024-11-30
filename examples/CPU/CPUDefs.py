@@ -152,7 +152,7 @@ class OPCODE(int,Enum):
     ROTL  = auto() # ROTL - Rotate lef a register
     ROTR  = auto() # ROTR - Rotate right a register
     CMP   = auto() # CMP  - Compare (performs a sub without a destination)
-    MUL   = auto()
+    MUL   = auto() # MUL  - Multiply two numbers
     DIV   = auto()
     
 
@@ -198,6 +198,7 @@ class ALUOpType(int,Enum):
         return count
     ADD = auto()
     SUB = auto()
+    MUL = auto()
     ROTR = auto()
     ROTL = auto()
     SHIFTR = auto()
@@ -205,7 +206,7 @@ class ALUOpType(int,Enum):
     MAX = auto()
 
 
-class ALUControl:
+class ALUControl():
     """This is the control input signals of the ALU"""
     opType : Vector
     """Type of operation that needs to be carried out"""
@@ -221,8 +222,11 @@ class ALUStatus(Cell,Vector):
     """Gets asserted high when the result of an operation equals zero"""
     C : Net
     """Carry flag. Is asserted high when an operation generates a carry"""
+    O : Net
+    """Overflow. Indicates the last operation's result cannot fit in a word"""
     def __init__(self):
-        Vector.__init__(self,2)
+        Vector.__init__(self,3)
         Cell.__init__(self)
         self.Z = self.nets[0]
         self.C = self.nets[1]
+        self.O = self.nets[2]

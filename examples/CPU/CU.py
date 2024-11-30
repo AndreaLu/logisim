@@ -147,11 +147,14 @@ class ControlUnit(Cell):
                     elif dst == MOVOP.D: DWE.set(1)
                     elif dst in (MOVOP.REG2MEM,MOVOP.IM2MEM):
                         DMemWE.set(1)
-            elif opcode in (OPCODE.ADD,OPCODE.SUB,OPCODE.CMP):
-                if opcode in (OPCODE.SUB,OPCODE.CMP):
-                    ALUCntrl.opType.set( ALUOpType.SUB )
-                else:
-                    ALUCntrl.opType.set( ALUOpType.ADD )
+            elif opcode in (OPCODE.ADD,OPCODE.SUB,OPCODE.CMP,OPCODE.MUL):
+                ALUCntrl.opType.set({
+                        OPCODE.SUB:ALUOpType.SUB,
+                        OPCODE.ADD:ALUOpType.ADD,
+                        OPCODE.CMP:ALUOpType.SUB,
+                        OPCODE.MUL:ALUOpType.MUL
+                    }[opcode]
+                )
                 
                 ALUCntrl.enable.set(1)
                 op = (instruction >> 8) & 0b111

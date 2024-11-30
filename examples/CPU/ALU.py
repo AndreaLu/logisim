@@ -81,13 +81,17 @@ class BWMultiplier:
         NOR((sigAllZeros,sigAllOnes),Overflow)
 
 class ALUCU:
-    def __init__(self, ctrl: ALUControl, adderMuxSel:Vector):
+    def __init__(self, ctrl: ALUControl, adderMuxSel:Vector, outMuxSel:Vector):
         def p():
             opType = ctrl.opType.get()
             if opType == ALUOpType.ADD:
                 adderMuxSel.set(0)
+                outMuxSel.set(0)
             elif opType == ALUOpType.SUB:
                 adderMuxSel.set(1)
+                outMuxSel.set(0)
+            elif opType == ALUOpType.MUL:
+                outMuxSel.set(1)
 
         PROCESS(p)
 
@@ -96,12 +100,13 @@ class ALU(Cell):
         assert (wordLen := A.length) == B.length
     
         # Control Unit
-        ALUCU(ctrl=ctrl,adderMuxSel=(sigAdderMuxSel := Net()))
+        ALUCU(ctrl=ctrl,adderMuxSel=(sigAdderMuxSel := Net()),outMuxSel=(sigOutMuxSel:=Vector(1)))
 
         # Addition/Subtraction
         Complementer(Input=B,Output=(sigBCompl:=Vector(wordLen)))
         MUX(Inputs=(B,sigBCompl), Output=(sigB:=Vector(wordLen)), Sel=sigAdderMuxSel)
         ADDER(A=A,B=sigB,Out=(sigOutAdder := Vector(wordLen)))
+
 
         # Status Register
         (cEXECUTE := Net()).set(STATE.EXECUTE)
@@ -110,7 +115,12 @@ class ALU(Cell):
         WEREG(D=(sigStatD:=ALUStatus()),Q=Status,WE=(sigStatWE:=Net()),CLK=Clock)
         AND(inputs=(sigStateIsExecute,ctrl.enable),output=sigStatWE)
         NOR(inputs=sigOutAdder.nets,output=sigStatD.Z)
-        BUFF(inputs=(sigOutAdder,),output=Out)
+
+        # Multiplication
+        BWMultiplier(A=A,B=B,C=(sigOutMul:=Vector(wordLen*2)),Overflow=sigStatD.O)
+
+        # Output
+        MUX((sigOutAdder,sigOutMul[:wordLen]),Output=Out,Sel=sigOutMuxSel)
 
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ sigIMemAddr = Vector(16)
 sigIMemRE = Net()
 
 
-OSCILLATOR(50,clk)
+OSCILLATOR(100,clk)
 
 # Registers
 MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ,sigMemDout,sigALU),Output=sigRegD,Sel=sigRegDSel)
@@ -93,9 +93,10 @@ controller = ControlUnit(
     State=(sigState:=Net())
 )
 
+aluoptype = sigALUControl.opType
 MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ),Output=(sigALUA:=Vector(16)),Sel=sigALUMuxA)
 MUX(Inputs=(sigIm,sigAQ,sigBQ,sigCQ,sigDQ),Output=(sigALUB:=Vector(16)),Sel=sigALUMuxB)
-ALU(
+alu = ALU(
     ctrl=sigALUControl,
     A=sigALUA,
     B=sigALUB,
@@ -108,7 +109,7 @@ ALU(
 )
 
 BUFF((sigStatus.Z,),zero:= Net())
-simulateTimeUnit(4000)
+simulateTimeUnit(8000)
 # Store the ram to a file to make it easier to debug
 with open("ram.hex","wb") as fout:
     for word in dmem.ram:
