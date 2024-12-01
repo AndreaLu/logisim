@@ -21,12 +21,7 @@ class Complementer:
 
 class ShiftBuffer(Cell):
     def __init__(self,x:Net,f:Net,force:Net,en:Net,y:Net):
-        #MUX(Inputs=(x,f),Sel=force,Output=(sigInt:=Net()))
-        # TODO: implement the Net version of mux to use here (the previous declaration does not work)
-        self.sigInt = (sigInt := Net())
-        def p():
-            sigInt.set( x.get() if force.get() == 0 else f.get() )
-        PROCESS(p)
+        MUX(Inputs=(x,f),Sel=force,Output=(sigInt:=Net()))
         BUFFEN(x=sigInt,en=en,y=y)
 
 class Shifter(Cell):
@@ -214,24 +209,23 @@ if __name__ == "__main__":
     from logisim import simulateTimeUnit, writeVCD
     from logisim.seq import REG
 
-    A = Vector(4)
-    A.set(0b1011)
-    (amount := Vector(2)).set(1)
+    A = Vector(16)
+    A.set(0b1000110111100000)
+    (amount := Vector(4)).set(1)
 
     clk = Net()
 
     OSCILLATOR(100,clk)
     
-    REG(D=(sigAmountD:=Vector(2)),clock=clk,Q=amount)
-    ADDER(A=amount,B=(one2:=Vector(2)),Out=sigAmountD)
+    REG(D=(sigAmountD:=Vector(4)),clock=clk,Q=amount)
+    ADDER(A=amount,B=(one2:=Vector(4)),Out=sigAmountD)
     one2.set(1)
     
-    rotLeft     = Vector(4)
-    rotRight    = Vector(4)
-    shiftLeft   = Vector(4) # TODO: BUGGED, 0011 << 1 -> 0001 instead of 0110
-    # Il motivo è probabilmente che per inserire gli zeri a destra mi servono i buffer con l'abilitazione a forzare dove non li ho...
-    shiftLRight = Vector(4)
-    shiftARight = Vector(4)
+    rotLeft     = Vector(16)
+    rotRight    = Vector(16)
+    shiftLeft   = Vector(16)
+    shiftLRight = Vector(16)
+    shiftARight = Vector(16)
     
     sRotLeft   = Shifter(Input=A,Output=rotLeft,    isArithmetic=GND,  isRot=VDD,   isLeft=VDD,   amount=amount)
     sRotRight  = Shifter(Input=A,Output=rotRight,   isArithmetic=GND,  isRot=VDD,   isLeft=GND,   amount=amount)
@@ -239,7 +233,7 @@ if __name__ == "__main__":
     sShiLRight = Shifter(Input=A,Output=shiftLRight,isArithmetic=GND,  isRot=GND,   isLeft=GND,   amount=amount)
     sShiARight = Shifter(Input=A,Output=shiftARight,isArithmetic=VDD,  isRot=GND,   isLeft=GND,   amount=amount)
 
-    simulateTimeUnit(400)
+    simulateTimeUnit(1000)
     writeVCD("alu.vcd")
 
     

@@ -2,58 +2,74 @@ from .logisim import Vector,NOT,Net,AND,OR,VDD
 from math import log2, ceil
 
 class MUX:
-    def __init__(self,Inputs: tuple[Vector], Output: Vector, Sel:Vector|Net):
-        wordLen = Output.length
-        for input in Inputs:
-            assert input.length == wordLen
-        
-        size = len(Inputs)
-        selSize = ceil(log2(size))
-        if selSize > 1:
-            assert type(Sel) is Vector
-            assert Sel.length >= selSize
+    def __init__(self,Inputs: tuple[Vector|Net], Output: Vector|Net, Sel:Vector|Net):
+        if type(Output) is Net:
+            size = len(Inputs)
+            # Make Sel a Vector(1) if it is a Net
+            if type(Sel) is not Vector:
+                (_s := Vector(1)).nets[0] = Sel
+                Sel = _s
+            assert Sel.length == (selSize:=ceil(log2(size)))
+            # Generate SelN, the negated version of Sel
+            NOT((Sel,),SelN:=Vector(selSize))
+            # Generate the midterms
+            midTerms = Vector(size)
+            for i,input in enumerate(Inputs):
+                AND([input] + [Sel.nets[j] if (i >> j) & 1 == 1 else SelN.nets[j] for j in range(selSize)],midTerms.nets[i])
+            OR(midTerms.nets,Output)
 
-        # Create the negated version of sel
-        if type(Sel) is Vector:
-            SelN = Vector(selSize)
-            for i in range(selSize):
-                NOT((Sel.nets[i],),SelN.nets[i])
-        else: # sel is a single Net
-            SelN = Net()
-            NOT((Sel,),SelN)
-
-
-        inputInts = []
-
-        index = -1
-        for input in Inputs:
-            index += 1
-            inputInt = Vector(wordLen)
-            inputInts.append(inputInt)
-
-            # Create a selector for this input
-            selector = Net()
-            andNets = [] # list nof Nets to and to create the selector
-            if type(Sel) is Net:
-                if index == 0:
-                    andNets.append( SelN )
-                else:
-                    andNets.append( Sel )
-            else:
-                for i in range(selSize):
-                    if (index >> i) & 1 == 1:
-                        andNets.append( Sel.nets[i] )
-                    else:
-                        andNets.append( SelN.nets[i] )
-            AND( andNets, selector )
+        else:
+            wordLen = Output.length
+            for input in Inputs:
+                assert input.length == wordLen
             
-            # Generate this internal input gated by the selector
+            size = len(Inputs)
+            selSize = ceil(log2(size))
+            if selSize > 1:
+                assert type(Sel) is Vector
+                assert Sel.length >= selSize
+
+            # Create the negated version of sel
+            if type(Sel) is Vector:
+                SelN = Vector(selSize)
+                for i in range(selSize):
+                    NOT((Sel.nets[i],),SelN.nets[i])
+            else: # sel is a single Net
+                SelN = Net()
+                NOT((Sel,),SelN)
+
+
+            inputInts = []
+
+            index = -1
+            for input in Inputs:
+                index += 1
+                inputInt = Vector(wordLen)
+                inputInts.append(inputInt)
+
+                # Create a selector for this input
+                selector = Net()
+                andNets = [] # list nof Nets to and to create the selector
+                if type(Sel) is Net:
+                    if index == 0:
+                        andNets.append( SelN )
+                    else:
+                        andNets.append( Sel )
+                else:
+                    for i in range(selSize):
+                        if (index >> i) & 1 == 1:
+                            andNets.append( Sel.nets[i] )
+                        else:
+                            andNets.append( SelN.nets[i] )
+                AND( andNets, selector )
+                
+                # Generate this internal input gated by the selector
+                for i in range(wordLen):
+                    AND( (input.nets[i], selector), inputInt.nets[i] )
+            
+            # Or all the internal inputs into the output
             for i in range(wordLen):
-                AND( (input.nets[i], selector), inputInt.nets[i] )
-        
-        # Or all the internal inputs into the output
-        for i in range(wordLen):
-            OR( [j.nets[i] for j in inputInts], Output.nets[i] )
+                OR( [j.nets[i] for j in inputInts], Output.nets[i] )
 
 class DEMUX:
     def __init__(self,Input:Vector|Net,Sel:Vector|Net,Outputs:tuple[Vector]|Vector):
