@@ -43,13 +43,20 @@ class Shifter(Cell):
         """matrix[x][y] is the buffer which connects the x-th input net to the y-th output net"""
         
         self.sigForce = (sigForce := Net())
+        self.sigForceLeft = (sigForceLeft := Net())
         self.sigForceVal = (sigForceVal := Net())
         self.sigEnable = (sigEnable := Vector(wordLen))
 
         for x in range(wordLen):
             matrix.append([])
             for y in range(wordLen):
-                force = sigForce if ((x < y) and (x < (wordLen-1))) else GND
+                if ((x < y) and (x < (wordLen-1))):
+                    force = sigForce
+                elif x > y and x > 0:
+                    force = sigForceLeft
+                else:
+                    force = GND
+
                 enable = sigEnable.nets[ (x-y) % wordLen ]
                 #print(f"matrix[{x}][{y}] enable is sigEnable[{(x-y) % wordLen }]")
                 matrix[x].append(
@@ -67,11 +74,15 @@ class Shifter(Cell):
         def p():
             if isRot.get() == 1:
                 sigForce.set(0)
+                sigForceLeft.set(0)
             else:
-                sigForce.set(1)
                 if isLeft.get() == 1:
                     sigForceVal.set(0)
+                    sigForce.set(0)
+                    sigForceLeft.set(1)
                 else:
+                    sigForce.set(1)
+                    sigForceLeft.set(0)
                     if isArithmetic.get() == 1:
                         # Sign extension in case of right arithmetic shifts
                         sigForceVal.set( Input.nets[wordLen-1].get() )
@@ -91,7 +102,8 @@ class Shifter(Cell):
         cWordLen.set(wordLen)
         leftShiftAmount = Vector(amountSize)
         for i in range(amountSize): BUFF((intAmount.nets[i],),leftShiftAmount.nets[i])
-        MUX(Inputs=(leftShiftAmount,amount),Output=(actualAmount:=Vector(amountSize)),Sel=isLeft)
+        MUX(Inputs=(amount,leftShiftAmount),Output=(actualAmount:=Vector(amountSize)),Sel=isLeft)
+        self.actualAmount = actualAmount
         DECODER(Input=actualAmount,Outputs=sigEnable)
 
 
@@ -217,14 +229,15 @@ if __name__ == "__main__":
     rotLeft     = Vector(4)
     rotRight    = Vector(4)
     shiftLeft   = Vector(4) # TODO: BUGGED, 0011 << 1 -> 0001 instead of 0110
+    # Il motivo è probabilmente che per inserire gli zeri a destra mi servono i buffer con l'abilitazione a forzare dove non li ho...
     shiftLRight = Vector(4)
-    shiftARight = Vector(4) # TODO: BUGGED, 1011 >> 1 -> 0101 invece di 1101
+    shiftARight = Vector(4)
     
-    sRotLeft   = Shifter(Input=A,Output=rotLeft,    isArithmetic=GND,isRot=VDD,isLeft=GND,amount=amount)
-    sRotRight  = Shifter(Input=A,Output=rotRight,   isArithmetic=GND,isRot=VDD,isLeft=VDD,amount=amount)
-    sShiLeft   = Shifter(Input=A,Output=shiftLeft,  isArithmetic=GND,isRot=GND,isLeft=GND,amount=amount)
-    sShiLRight = Shifter(Input=A,Output=shiftLRight,isArithmetic=GND,isRot=GND,isLeft=VDD,amount=amount)
-    sShiARight = Shifter(Input=A,Output=shiftARight,isArithmetic=VDD,isRot=GND,isLeft=VDD,amount=amount)
+    sRotLeft   = Shifter(Input=A,Output=rotLeft,    isArithmetic=GND,  isRot=VDD,   isLeft=VDD,   amount=amount)
+    sRotRight  = Shifter(Input=A,Output=rotRight,   isArithmetic=GND,  isRot=VDD,   isLeft=GND,   amount=amount)
+    sShiLeft   = Shifter(Input=A,Output=shiftLeft,  isArithmetic=GND,  isRot=GND,   isLeft=VDD,   amount=amount)
+    sShiLRight = Shifter(Input=A,Output=shiftLRight,isArithmetic=GND,  isRot=GND,   isLeft=GND,   amount=amount)
+    sShiARight = Shifter(Input=A,Output=shiftARight,isArithmetic=VDD,  isRot=GND,   isLeft=GND,   amount=amount)
 
     simulateTimeUnit(400)
     writeVCD("alu.vcd")
