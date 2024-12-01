@@ -152,6 +152,18 @@ class XNOR(Gate):
 class BUFF(Gate):
     def Eval(self):
         self.output.set(self.inputs[0].get())
+class BUFFEN():
+    def __init__(self,x:Net,en:Net,y:Net):
+        self.x = x 
+        self.en = en
+        self.y = y
+        gates.append(self)
+    def Eval(self):
+        if self.en.get() == 1:
+            self.y.set(self.x.get())
+        # High impedance output: simply do not set y
+        
+        
 
 # Basic type used to mark a class as suitable for automatic detection
 # for the generation of the VCD database

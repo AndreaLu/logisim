@@ -56,50 +56,90 @@ class MUX:
             OR( [j.nets[i] for j in inputInts], Output.nets[i] )
 
 class DEMUX:
-    def __init__(self,Input:Vector,Sel:Vector|Net,Outputs:tuple[Vector]):
-        wordLen = Input.length
-        for output in Outputs:
-            assert output.length == wordLen
+    def __init__(self,Input:Vector|Net,Sel:Vector|Net,Outputs:tuple[Vector]|Vector):
+        if type(Input) is Net:
+            assert type(Outputs) is Vector
+            size = Outputs.length
+            selSize = ceil(log2(size))
+            if selSize > 1:
+                assert(type(Sel) is Vector)
+                assert Sel.length == selSize
+                sel : Vector = Sel
+                selN = Vector(selSize)
+                for i in range(selSize): NOT((sel.nets[i],),selN.nets[i])
 
-        
-        size = len(Outputs)
-        selSize = ceil(log2(size))
-        if selSize > 1:
-            assert type(Sel) is Vector
-            assert Sel.length >= selSize
-
-        # Create the negated version of sel
-        if type(Sel) is Vector:
-            SelN = Vector(selSize)
-            for i in range(selSize):
-                NOT((Sel.nets[i],),SelN.nets[i])
-        else: # sel is a single Net
-            SelN = Net()
-            NOT((Sel,),SelN)
-        
-        outputIndex = -1
-        for output in Outputs:
-
-            outputIndex += 1
-            # For each possible output, generate a selctor net
-            outputSelector = Net()
-
-            andNets = [] # list nof Nets to and to create the outputSelector
-            if type(Sel) is Net:
-                if outputIndex == 0:
-                    andNets.append( SelN )
-                else:
-                    andNets.append( Sel )
             else:
-                for i in range(selSize):
-                    if (outputIndex >> i) & 1 == 1:
-                        andNets.append( Sel.nets[i] )
-                    else:
-                        andNets.append( SelN.nets[i] )
-            AND( andNets, outputSelector )
+                assert( type(Sel) is Net or (type(Sel) is Vector and Sel.length == 1))
+                sel : Net = Sel if type(Sel) is Net else Sel.nets[0]
+                selN = Net()
+                NOT((sel,),selN)
             
-            for i in range(wordLen):
-                AND( (Input.nets[i], outputSelector), output.nets[i] )
+            outputIndex = -1
+            for output in Outputs.nets:
+
+                outputIndex += 1
+                # For each possible output, generate a selctor net
+                outputSelector = Net()
+
+                andNets = [] # list nof Nets to and to create the outputSelector
+                if type(sel) is Net:
+                    if outputIndex == 0:
+                        andNets.append( selN )
+                    else:
+                        andNets.append( sel )
+                else:
+                    for i in range(selSize):
+                        if (outputIndex >> i) & 1 == 1:
+                            andNets.append( sel.nets[i] )
+                        else:
+                            andNets.append( selN.nets[i] )
+                AND( andNets, outputSelector )               
+                AND( (Input, outputSelector), output )
+
+        else:
+            wordLen = Input.length
+            for output in Outputs:
+                assert output.length == wordLen
+
+            
+            size = len(Outputs)
+            selSize = ceil(log2(size))
+            if selSize > 1:
+                assert type(Sel) is Vector
+                assert Sel.length >= selSize
+
+            # Create the negated version of sel
+            if type(Sel) is Vector:
+                SelN = Vector(selSize)
+                for i in range(selSize):
+                    NOT((Sel.nets[i],),SelN.nets[i])
+            else: # sel is a single Net
+                SelN = Net()
+                NOT((Sel,),SelN)
+            
+            outputIndex = -1
+            for output in Outputs:
+
+                outputIndex += 1
+                # For each possible output, generate a selctor net
+                outputSelector = Net()
+
+                andNets = [] # list nof Nets to and to create the outputSelector
+                if type(Sel) is Net:
+                    if outputIndex == 0:
+                        andNets.append( SelN )
+                    else:
+                        andNets.append( Sel )
+                else:
+                    for i in range(selSize):
+                        if (outputIndex >> i) & 1 == 1:
+                            andNets.append( Sel.nets[i] )
+                        else:
+                            andNets.append( SelN.nets[i] )
+                AND( andNets, outputSelector )
+                
+                for i in range(wordLen):
+                    AND( (Input.nets[i], outputSelector), output.nets[i] )
 
 class DECODER:
     def __init__(self,Input : Vector, Outputs : Vector):

@@ -2,12 +2,12 @@ import sys
 
 sys.path.append("../../") # let python find logisim
 
-from logisim import Net,Vector,NOT,BUFF,PROCESS,Cell,NOR,AND,VDD,NAND
-from logisim.arith import ADDER,EQUALS,FullAdder
-from logisim.comb import MUX
+from logisim import Net,Vector,NOT,BUFFEN,PROCESS,Cell,NOR,AND,VDD,NAND,GND,BUFF
+from logisim.arith import ADDER,FullAdder
+from logisim.comb import MUX,DECODER
 from logisim.seq import WEREG,OSCILLATOR
 from CPUDefs import ALUControl,ALUOpType,ALUStatus,STATE
-
+from math import log2,ceil
 # Generates the 2's complement of the input
 class Complementer:
     def __init__(self, Input : Vector, Output: Vector):
@@ -19,9 +19,84 @@ class Complementer:
         NOT(inputs=(Input,),output=sigInputN)
         ADDER(A=cOne,B=sigInputN,Out=Output)
 
-class Rotator:
-    def __init__(self,Input : Vector, Output: Vector, ):
-        pass
+class ShiftBuffer(Cell):
+    def __init__(self,x:Net,f:Net,force:Net,en:Net,y:Net):
+        #MUX(Inputs=(x,f),Sel=force,Output=(sigInt:=Net()))
+        # TODO: implement the Net version of mux to use here (the previous declaration does not work)
+        self.sigInt = (sigInt := Net())
+        def p():
+            sigInt.set( x.get() if force.get() == 0 else f.get() )
+        PROCESS(p)
+        BUFFEN(x=sigInt,en=en,y=y)
+
+class Shifter(Cell):
+    """This block can apply arithmetic/logic shifts and rotations
+    isArithmetic: 1 indicates that the requested shift is arithmetic, 0 indicates a logic shift
+    isRot: 1 indicates that requested operation is a rotation (bits shifted out enter the other side), 0 indicates a  shift
+    isLeft: 1 indicates that the requested shift/rotate operation is left, 0 indicates right
+    """
+    def __init__(self,Input : Vector, Output: Vector, isArithmetic:Net, isRot:Net, isLeft:Net, amount:Vector):
+        
+        # Create the buffer matrix
+        assert (wordLen := Input.length) == Output.length
+        matrix = []
+        """matrix[x][y] is the buffer which connects the x-th input net to the y-th output net"""
+        
+        self.sigForce = (sigForce := Net())
+        self.sigForceVal = (sigForceVal := Net())
+        self.sigEnable = (sigEnable := Vector(wordLen))
+
+        for x in range(wordLen):
+            matrix.append([])
+            for y in range(wordLen):
+                force = sigForce if ((x < y) and (x < (wordLen-1))) else GND
+                enable = sigEnable.nets[ (x-y) % wordLen ]
+                #print(f"matrix[{x}][{y}] enable is sigEnable[{(x-y) % wordLen }]")
+                matrix[x].append(
+                    ShiftBuffer(
+                        x=Input.nets[x],
+                        y=Output.nets[y],
+                        force=force,
+                        f=sigForceVal,
+                        en=enable
+                    )
+                )
+        
+        # Control force and forceVal
+        # TODO: once the circuit works, implement this with logic
+        def p():
+            if isRot.get() == 1:
+                sigForce.set(0)
+            else:
+                sigForce.set(1)
+                if isLeft.get() == 1:
+                    sigForceVal.set(0)
+                else:
+                    if isArithmetic.get() == 1:
+                        # Sign extension in case of right arithmetic shifts
+                        sigForceVal.set( Input.nets[wordLen-1].get() )
+                    else:
+                        sigForceVal.set(0)
+        PROCESS(p)
+
+        
+        amountSize = ceil(log2(wordLen))
+        assert amount.length == amountSize
+        
+        pAmount = Vector(amountSize+1)
+        pAmount[amountSize-1].set(0)
+        for i in range(amountSize): BUFF((amount.nets[i],),pAmount.nets[i])
+        Complementer(Input=pAmount,Output=(nAmount:=Vector(amountSize+1)))
+        ADDER(A=nAmount,B=(cWordLen:=Vector(amountSize+1)),Out=(intAmount:=Vector(amountSize+1)))
+        cWordLen.set(wordLen)
+        leftShiftAmount = Vector(amountSize)
+        for i in range(amountSize): BUFF((intAmount.nets[i],),leftShiftAmount.nets[i])
+        MUX(Inputs=(leftShiftAmount,amount),Output=(actualAmount:=Vector(amountSize)),Sel=isLeft)
+        DECODER(Input=actualAmount,Outputs=sigEnable)
+
+
+        
+                
 
 
 class BWMultiplier:
@@ -125,16 +200,33 @@ class ALU(Cell):
 
 if __name__ == "__main__":
     from logisim import simulateTimeUnit, writeVCD
+    from logisim.seq import REG
 
-    A,B,C,Overflow = Vector(16),Vector(16),Vector(32),Net()
-    A.set(1057)
-    B.set(31)
+    A = Vector(4)
+    A.set(0b1011)
+    (amount := Vector(2)).set(1)
+
     clk = Net()
 
-    OSCILLATOR(10,clk)
-    BWMultiplier(A,B,C,Overflow)
+    OSCILLATOR(100,clk)
     
-    simulateTimeUnit(300)
+    REG(D=(sigAmountD:=Vector(2)),clock=clk,Q=amount)
+    ADDER(A=amount,B=(one2:=Vector(2)),Out=sigAmountD)
+    one2.set(1)
+    
+    rotLeft     = Vector(4)
+    rotRight    = Vector(4)
+    shiftLeft   = Vector(4) # TODO: BUGGED, 0011 << 1 -> 0001 instead of 0110
+    shiftLRight = Vector(4)
+    shiftARight = Vector(4) # TODO: BUGGED, 1011 >> 1 -> 0101 invece di 1101
+    
+    sRotLeft   = Shifter(Input=A,Output=rotLeft,    isArithmetic=GND,isRot=VDD,isLeft=GND,amount=amount)
+    sRotRight  = Shifter(Input=A,Output=rotRight,   isArithmetic=GND,isRot=VDD,isLeft=VDD,amount=amount)
+    sShiLeft   = Shifter(Input=A,Output=shiftLeft,  isArithmetic=GND,isRot=GND,isLeft=GND,amount=amount)
+    sShiLRight = Shifter(Input=A,Output=shiftLRight,isArithmetic=GND,isRot=GND,isLeft=VDD,amount=amount)
+    sShiARight = Shifter(Input=A,Output=shiftARight,isArithmetic=VDD,isRot=GND,isLeft=VDD,amount=amount)
+
+    simulateTimeUnit(400)
     writeVCD("alu.vcd")
 
     
