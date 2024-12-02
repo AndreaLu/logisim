@@ -206,12 +206,26 @@ class ALUOpType(int,Enum):
     ADD = auto()
     SUB = auto()
     MUL = auto()
-    ROTR = auto()
-    ROTL = auto()
-    SHIFTR = auto()
-    SHIFTL = auto()
+    ROR = auto()
+    ROL = auto()
+    SRL = auto()
+    SRA = auto()
+    SHL = auto()
     MAX = auto()
 
+
+class ShifterControl():
+    isLeft : Net
+    """1 if the operation is a left shift or a left rotation"""
+    isRot : Net
+    """1 if the operation is a rotation"""
+    isArithmetic : Net
+    """1 if the right shift operation is arithmetic"""
+
+    def __init__(self):
+        self.isLeft = Net()
+        self.isRot = Net()
+        self.isArithmetic = Net()
 
 class ALUControl():
     """This is the control input signals of the ALU"""

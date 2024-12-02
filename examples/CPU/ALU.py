@@ -2,11 +2,11 @@ import sys
 
 sys.path.append("../../") # let python find logisim
 
-from logisim import Net,Vector,NOT,BUFFEN,PROCESS,Cell,NOR,AND,VDD,NAND,GND,BUFF
+from logisim import Net,Vector,NOT,BUFFEN,PROCESS,Cell,NOR,AND,VDD,NAND,GND,BUFF,OR
 from logisim.arith import ADDER,FullAdder
 from logisim.comb import MUX,DECODER
 from logisim.seq import WEREG,OSCILLATOR
-from CPUDefs import ALUControl,ALUOpType,ALUStatus,STATE
+from CPUDefs import ALUControl,ALUOpType,ALUStatus,STATE,ShifterControl
 from math import log2,ceil
 # Generates the 2's complement of the input
 class Complementer:
@@ -30,7 +30,7 @@ class Shifter(Cell):
     isRot: 1 indicates that requested operation is a rotation (bits shifted out enter the other side), 0 indicates a  shift
     isLeft: 1 indicates that the requested shift/rotate operation is left, 0 indicates right
     """
-    def __init__(self,Input : Vector, Output: Vector, isArithmetic:Net, isRot:Net, isLeft:Net, amount:Vector):
+    def __init__(self,Input : Vector, Output: Vector, ctrl:ShifterControl, amount:Vector, carry:Net):
         
         # Create the buffer matrix
         assert (wordLen := Input.length) == Output.length
@@ -53,7 +53,7 @@ class Shifter(Cell):
                     force = GND
 
                 enable = sigEnable.nets[ (x-y) % wordLen ]
-                #print(f"matrix[{x}][{y}] enable is sigEnable[{(x-y) % wordLen }]")
+
                 matrix[x].append(
                     ShiftBuffer(
                         x=Input.nets[x],
@@ -67,27 +67,38 @@ class Shifter(Cell):
         # Control force and forceVal
         # TODO: once the circuit works, implement this with logic
         def p():
-            if isRot.get() == 1:
+            if ctrl.isRot.get() == 1:
                 sigForce.set(0)
                 sigForceLeft.set(0)
             else:
-                if isLeft.get() == 1:
+                if ctrl.isLeft.get() == 1:
                     sigForceVal.set(0)
                     sigForce.set(0)
                     sigForceLeft.set(1)
                 else:
                     sigForce.set(1)
                     sigForceLeft.set(0)
-                    if isArithmetic.get() == 1:
+                    if ctrl.isArithmetic.get() == 1:
                         # Sign extension in case of right arithmetic shifts
                         sigForceVal.set( Input.nets[wordLen-1].get() )
                     else:
                         sigForceVal.set(0)
         PROCESS(p)
 
+        # Carry
+        AND((ctrl.isLeft,Input.nets[wordLen-1]),carry0:=Net())
+        NOT((ctrl.isLeft,),isRight:=Net())
+        AND((isRight,Input.nets[0]),carry1:=Net())
+        OR((carry0,carry1),carry)
+
         
         amountSize = ceil(log2(wordLen))
-        assert amount.length == amountSize
+        assert amount.length >= amountSize
+        _amount = Vector(amountSize)
+        for i in range(amountSize):
+            _amount.nets[i] = amount.nets[i]
+        amount = _amount
+
         
         pAmount = Vector(amountSize+1)
         pAmount[amountSize-1].set(0)
@@ -97,7 +108,7 @@ class Shifter(Cell):
         cWordLen.set(wordLen)
         leftShiftAmount = Vector(amountSize)
         for i in range(amountSize): BUFF((intAmount.nets[i],),leftShiftAmount.nets[i])
-        MUX(Inputs=(amount,leftShiftAmount),Output=(actualAmount:=Vector(amountSize)),Sel=isLeft)
+        MUX(Inputs=(amount,leftShiftAmount),Output=(actualAmount:=Vector(amountSize)),Sel=ctrl.isLeft)
         self.actualAmount = actualAmount
         DECODER(Input=actualAmount,Outputs=sigEnable)
 
@@ -163,7 +174,7 @@ class BWMultiplier:
         NOR((sigAllZeros,sigAllOnes),Overflow)
 
 class ALUCU:
-    def __init__(self, ctrl: ALUControl, adderMuxSel:Vector, outMuxSel:Vector):
+    def __init__(self, ctrl: ALUControl, adderMuxSel:Vector, outMuxSel:Vector, shifterCtrl:ShifterControl):
         def p():
             opType = ctrl.opType.get()
             if opType == ALUOpType.ADD:
@@ -174,6 +185,28 @@ class ALUCU:
                 outMuxSel.set(0)
             elif opType == ALUOpType.MUL:
                 outMuxSel.set(1)
+            elif opType == ALUOpType.ROR:
+                shifterCtrl.isRot.set(1)
+                shifterCtrl.isLeft.set(0)
+                outMuxSel.set(2)
+            elif opType == ALUOpType.ROL:
+                shifterCtrl.isRot.set(1)
+                shifterCtrl.isLeft.set(1)
+                outMuxSel.set(2)
+            elif opType == ALUOpType.SHL:
+                shifterCtrl.isRot.set(0)
+                shifterCtrl.isLeft.set(1)
+                outMuxSel.set(2)
+            elif opType == ALUOpType.SRL:
+                shifterCtrl.isRot.set(0)
+                shifterCtrl.isLeft.set(0)
+                shifterCtrl.isArithmetic.set(0)
+                outMuxSel.set(2)
+            elif opType == ALUOpType.SRA:
+                shifterCtrl.isRot.set(0)
+                shifterCtrl.isLeft.set(0)
+                shifterCtrl.isArithmetic.set(1)
+                outMuxSel.set(2)
 
         PROCESS(p)
 
@@ -181,28 +214,41 @@ class ALU(Cell):
     def __init__(self, ctrl: ALUControl, A: Vector,B:Vector, Out :Vector, Carry: Net, Overflow:Net,Clock: Net, Status:ALUStatus, CPUState:Net):
         assert (wordLen := A.length) == B.length
     
+        sigStatD = ALUStatus()
+
         # Control Unit
-        ALUCU(ctrl=ctrl,adderMuxSel=(sigAdderMuxSel := Net()),outMuxSel=(sigOutMuxSel:=Vector(1)))
+        ALUCU(
+            ctrl=ctrl,  # opcode
+            adderMuxSel=(sigAdderMuxSel := Net()), # Adder sel (0 to add, 1 to subtract)
+            outMuxSel=(sigOutMuxSel:=Vector(2)), # Output selectin (0 = adder, 1 = multiplier, 2 = shifter)
+            shifterCtrl=(sigShifterCtrl:=ShifterControl())
+        )
+
+        # Shift operations
+        Shifter(
+            Input=A,amount=B,
+            Output=(sigOutShift:=Vector(wordLen)),
+            ctrl=sigShifterCtrl,
+            carry=sigStatD.C,
+        )
 
         # Addition/Subtraction
         Complementer(Input=B,Output=(sigBCompl:=Vector(wordLen)))
         MUX(Inputs=(B,sigBCompl), Output=(sigB:=Vector(wordLen)), Sel=sigAdderMuxSel)
         ADDER(A=A,B=sigB,Out=(sigOutAdder := Vector(wordLen)))
 
-
         # Status Register
-        (cEXECUTE := Net()).set(STATE.EXECUTE)
         (one := Net()).set(1)
         AND(inputs=(one,CPUState),output=(sigStateIsExecute:=Net()))
-        WEREG(D=(sigStatD:=ALUStatus()),Q=Status,WE=(sigStatWE:=Net()),CLK=Clock)
+        WEREG(D=sigStatD,Q=Status,WE=(sigStatWE:=Net()),CLK=Clock)
         AND(inputs=(sigStateIsExecute,ctrl.enable),output=sigStatWE)
         NOR(inputs=sigOutAdder.nets,output=sigStatD.Z)
 
         # Multiplication
         BWMultiplier(A=A,B=B,C=(sigOutMul:=Vector(wordLen*2)),Overflow=sigStatD.O)
-
+        
         # Output
-        MUX((sigOutAdder,sigOutMul[:wordLen]),Output=Out,Sel=sigOutMuxSel)
+        MUX((sigOutAdder,sigOutMul[:wordLen],sigOutShift),Output=Out,Sel=sigOutMuxSel)
 
 
 if __name__ == "__main__":
@@ -236,4 +282,4 @@ if __name__ == "__main__":
     simulateTimeUnit(1000)
     writeVCD("alu.vcd")
 
-    
+
