@@ -63,6 +63,22 @@ class Vector:
 
     def markForVCD(self,name):
         self.name = name
+    
+    def __getitem__(self,key):
+        if isinstance(key,slice):
+            indices = range(*key.indices(len(self.nets)))
+            newVector = Vector(len(indices))
+            newVector.nets = [self.nets[i] for i in indices]
+            vectors.remove(newVector)
+            return newVector
+
+        return self.nets[key]
+
+class PROCESS:
+    def __init__(self,Eval):
+        gates.append(self)
+        self.Eval = Eval
+
 
 
 
@@ -136,6 +152,18 @@ class XNOR(Gate):
 class BUFF(Gate):
     def Eval(self):
         self.output.set(self.inputs[0].get())
+class BUFFEN():
+    def __init__(self,x:Net,en:Net,y:Net):
+        self.x = x 
+        self.en = en
+        self.y = y
+        gates.append(self)
+    def Eval(self):
+        if self.en.get() == 1:
+            self.y.set(self.x.get())
+        # High impedance output: simply do not set y
+        
+        
 
 # Basic type used to mark a class as suitable for automatic detection
 # for the generation of the VCD database
@@ -144,11 +172,13 @@ class Cell:
         pass
 
 def simulateTimeUnit(units=1):
+    print(f"Simulating {len(gates)}-gates circuit for {units} ticks...")
     for i in range(units):
         for net in nets:
             net.advanceTime()
         for gate in gates:
             gate.Eval()
+    print("Simulation finished!")
 
 
 GND = Net()
@@ -267,6 +297,6 @@ def writeVCD(fname):
 
     with open(fname,"w") as f:    
         f.write(retv)
-    print(f"Generated database file '{fname}'.\nOpen it up with a VCD viewer to browse the waveforms!")
+    print(f"Generated database file '{fname}' with simulation results.\nOpen it up with a VCD viewer to browse the waveforms!")
 
 
