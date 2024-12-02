@@ -162,51 +162,56 @@ def compile(srcCode:str) -> bytes:
         return OPCODE.JMP | (map[opcode] << 8) | (reg << 11) | (immediate << 14)
     def parseALU(args : list[str]) -> bytes:
         immediate = 0
-
-        if args[0] in ("ADD","SUB","MUL","DIV","CMP"):
-            opcode = {
-                "ADD":OPCODE.ADD,
-                "SUB":OPCODE.SUB,
-                "MUL":OPCODE.MUL,
-                "DIV":OPCODE.DIV,
-                "CMP":OPCODE.CMP
-            }[args[0]]
-            # Parse A -----------------------------------------------------
-            A = asmToken(args[1]).parse()
-            if A[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
-                error(f"Invalid operand A in ADD: '{args[1]}', " \
-                    "must be either Immediate or Register!")
+        assert args[0] in ("ADD","SUB","MUL","CMP","ROR","ROL","SRA","SRL","SHL")
+        opcode = {
+            "ADD":OPCODE.ADD,
+            "SUB":OPCODE.SUB,
+            "MUL":OPCODE.MUL,
+            "CMP":OPCODE.CMP,
+            "ROR":OPCODE.ROR,
+            "ROL":OPCODE.ROL,
+            "SHL":OPCODE.SHL,
+            "SRL":OPCODE.SRL,
+            "SRA":OPCODE.SRA
+        }[args[0]]
+        # Parse A -----------------------------------------------------
+        A = asmToken(args[1]).parse()
+        if A[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
+            error(f"Invalid operand A in ADD: '{args[1]}', " \
+                "must be either Immediate or Register!")
+    
+        if A[0] == ASM_TOKEN.REG:
+            opa = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(A[1])]
+        else:
+            opa = ADDOP.IM
+            immediate = A[1]
         
-            if A[0] == ASM_TOKEN.REG:
-                opa = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(A[1])]
-            else:
-                opa = ADDOP.IM
-                immediate = A[1]
-            
-            # Parse B ---------------------------------------------------------
-            B = asmToken(args[2]).parse()
-            if B[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
-                error(f"Invalid operand B in ADD: '{args[2]}', " \
-                    "must be either Immediate or Register!")
-            if B[0] == ASM_TOKEN.IM and A[0] == ASM_TOKEN.IM:
-                error(f"Both operands in ADD instruction cannot be immediate!")
-            
-            if B[0] == ASM_TOKEN.REG:
-                opb = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(B[1])]
-            else:
-                opb = ADDOP.IM
-                immediate = B[1]
-            if opcode != OPCODE.CMP:
-                # Parse DST -----------------------------------------------
-                DST = asmToken(args[3]).parse()
-                if DST[0] != ASM_TOKEN.REG:
-                    error(f"Invalid DST '{args[3]}' in ADD operation: DST must be a register!")
-                dst = (MOVOP.A,MOVOP.B,MOVOP.C,MOVOP.D)["abcd".index(DST[1])]
+        # Parse B ---------------------------------------------------------
+        B = asmToken(args[2]).parse()
+        if B[0] not in (ASM_TOKEN.IM,ASM_TOKEN.REG):
+            error(f"Invalid operand B in ADD: '{args[2]}', " \
+                "must be either Immediate or Register!")
+        if B[0] == ASM_TOKEN.IM and A[0] == ASM_TOKEN.IM:
+            error(f"Both operands in ADD instruction cannot be immediate!")
+        
+        if B[0] == ASM_TOKEN.REG:
+            opb = (ADDOP.A,ADDOP.B,ADDOP.C,ADDOP.D)["abcd".index(B[1])]
+        else:
+            opb = ADDOP.IM
+            immediate = B[1]
+    
+        # Parse DST -------------------------------------------------------
+        if opcode != OPCODE.CMP:
+            DST = asmToken(args[3]).parse()
+            if DST[0] != ASM_TOKEN.REG:
+                error(f"Invalid DST '{args[3]}' in ADD operation: DST must be a register!")
+            dst = (MOVOP.A,MOVOP.B,MOVOP.C,MOVOP.D)["abcd".index(DST[1])]
 
-                # Generate instruction
-                return opcode | (opa << 8) | (opb << 11) | (immediate << 14) | (dst << 30)
-            else:
-                return opcode | (opa << 8) | (opb << 11) | (immediate << 14)
+            # Generate instruction
+            return opcode | (opa << 8) | (opb << 11) | (immediate << 14) | (dst << 30)
+        else:
+            return opcode | (opa << 8) | (opb << 11) | (immediate << 14)
+
     def cleanupLine(line:str):
         # Some adaptation
         # remove comments and multiple whitespaces
@@ -290,7 +295,7 @@ def compile(srcCode:str) -> bytes:
         elif opcode[0] == "J":
             # Jumps need to be analyzed at the
             instruction = parseJMP(line.fields)
-        elif opcode in ("ADD","SUB","MUL","DIV","CMP"):
+        elif opcode in ("ADD","SUB","MUL","CMP","ROR","ROL","SRA","SRL","SHL"):
             instruction = parseALU(line.fields)
         else:   
             error(f"Unrecognized opcode '{opcode}'")

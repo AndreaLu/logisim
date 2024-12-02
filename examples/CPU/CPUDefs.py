@@ -54,7 +54,14 @@ from logisim import Net,Vector,Cell
 # operands can be either a register or an immediate.
 # Note: both operand refer to the same immediate
 # so for example `add $a 100` is the same as `mov $a 200`
-# SUB, MUL and DIV share the same fields.
+# ADD
+# SUB
+# MUL
+# SHL Shift Left, most significant bit is copied to the carry flag
+# SRL Shift Right Logic, least significant bit is copied to the carry flag
+# SRA Shift Right Arithmetic, least significant bit is copied to the carry flag
+# ROR Rotate Right, least significant bit is copied to the carry flag
+# ROL Rotate Left, most significant bit is copied to the carry flag
 
 #     CMP  |    A     |    B     |   IM    | REGDST
 #    [0:7] | [8:10]   | [11:13]  | [14:29] | [30:31]
@@ -147,13 +154,13 @@ class OPCODE(int,Enum):
     ADD   = auto() # ADD  - sum two words
     JMP   = auto() # JMP  - Jump to another location
     SUB   = auto() # SUB  - subtract two words
-    SFL   = auto() # SFL  - Shift left (arithmetic or logic) a register
-    SFR   = auto() # SFR  - Shift right (arithmetic or logic) a register
-    ROTL  = auto() # ROTL - Rotate lef a register
-    ROTR  = auto() # ROTR - Rotate right a register
+    SHL   = auto() # SFL  - Shift left a register
+    SRL   = auto() # SRL  - Shift Right Logic a register
+    SRA   = auto() # SRA  - Shift Right Arithmetic
+    ROL   = auto() # ROTL - Rotate lef a register
+    ROR   = auto() # ROTR - Rotate right a register
     CMP   = auto() # CMP  - Compare (performs a sub without a destination)
     MUL   = auto() # MUL  - Multiply two numbers
-    DIV   = auto()
     
 
 
